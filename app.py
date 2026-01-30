@@ -131,4 +131,5 @@ with tab_chart:
             # MAP YOUR ARCHETYPES TO COLORS HERE
             color_discrete_map={
                 "Monstar": "#800080",            # Purple for the GOATs
-                "Alien": "#ff2b2
+                "Alien": "#ff2b2"
+            
