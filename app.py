@@ -131,5 +131,76 @@ with tab_chart:
             # MAP YOUR ARCHETYPES TO COLORS HERE
             color_discrete_map={
                 "Monstar": "#800080",            # Purple for the GOATs
-                "Alien": "#ff2b2"
+                "Alien": "#ff2b2b",              # Red
+                "Heliocentric Engine": "#ffa600",# Orange
+                "Efficiency God": "#0068c9",     # Blue
+                "Undersized Paint Hustler": "#808080",
+                "Inefficient Volume": "#d3d3d3",
+                "": "#d3d3d3"                    # Grey for standard players
+            },
+            opacity=0.85
+        )
+
+        # Tier Lines
+        fig.add_hline(y=0.60, line_dash="dot", line_color="gold", annotation_text="MVP Tier")
+        fig.add_hline(y=0.45, line_dash="dot", line_color="silver", annotation_text="All-Star Tier")
+
+        # D. DYNAMIC LABELS ( controlled by slider )
+        top_prospects = clean_df.sort_values('star_prob', ascending=False).head(num_labels)
+        
+        # Avoid overlap logic
+        for i, row in top_prospects.iterrows():
+            shift_y = 15 if i % 2 == 0 else -15 # Alternate up/down
             
+            fig.add_annotation(
+                x=row['usg_max'],
+                y=row['star_prob'],
+                text=row['player_name'],
+                showarrow=False,
+                yshift=shift_y,
+                font=dict(size=11, color="black")
+            )
+
+        fig.update_layout(plot_bgcolor="white", height=600, legend=dict(orientation="h", y=-0.2))
+        fig.update_xaxes(showgrid=True, gridcolor='#f0f0f0')
+        fig.update_yaxes(showgrid=True, gridcolor='#f0f0f0', tickformat=".0%")
+
+        st.plotly_chart(fig, use_container_width=True)
+
+with tab_data:
+    st.subheader("📋 Scouting Database")
+    
+    # Search Filter
+    search_term = st.text_input("🔍 Search Player:", "")
+    if search_term:
+        display_df = year_df[year_df['player_name'].str.contains(search_term, case=False)]
+    else:
+        display_df = year_df
+
+    # Define columns to show in table
+    # We use .get() to avoid errors if a column is missing in older CSVs
+    table_cols = ['player_name', 'star_prob', 'archetype_note', 'height_in', 'bpm_max', 'usg_max', 'ts_used']
+    
+    # Add new V8 columns if they exist
+    if 'stock_rate' in display_df.columns:
+        table_cols.append('stock_rate')
+    if 'treerate' in display_df.columns:
+        table_cols.append('treerate')
+
+    # Configure Table
+    st.dataframe(
+        display_df[table_cols],
+        column_config={
+            "player_name": "Player",
+            "star_prob": st.column_config.ProgressColumn("Star Probability", format="%.1f%%", min_value=0, max_value=1),
+            "archetype_note": "Archetype",
+            "bpm_max": st.column_config.NumberColumn("BPM", format="%.1f"),
+            "usg_max": st.column_config.NumberColumn("Usage", format="%.1f%%"),
+            "ts_used": st.column_config.NumberColumn("True Shooting", format="%.2f"),
+            "stock_rate": st.column_config.NumberColumn("Stock %", format="%.1f"),
+            "treerate": st.column_config.NumberColumn("3P Rate", format="%.2f"),
+        },
+        use_container_width=True,
+        hide_index=True,
+        height=600
+    )
