@@ -49,13 +49,41 @@ with st.sidebar:
     
     st.divider()
     
-    # LABEL CONTROL
+    # Chart Controls
     st.subheader("🎨 Chart Settings")
-    num_labels = st.slider("Number of players to label:", min_value=0, max_value=20, value=5)
+    num_labels = st.slider("Number of labels:", min_value=0, max_value=20, value=5)
     
-    st.info("💡 Tip: 'Monstars' (Purple) represent generational statistical anomalies.")
+    st.divider()
 
-# Filter Data
+    # --- ARCHETYPE GLOSSARY ---
+    with st.expander("🧬 Archetype Glossary"):
+        st.markdown("""
+        **🦄 Monstar (Purple)**
+        *Generational outliers.*
+        - **Criteria:** BPM > 11.5 + Age ≤ 20
+        - **Examples:** Zion, AD, Mobley
+        
+        **👽 Alien (Red)**
+        *Unicorn bigs who do it all.*
+        - **Criteria:** High Stocks (Blk+Stl) + High Usage
+        - **Examples:** Chet, Wemby, Sengun
+        
+        **🚀 Heliocentric Engine (Orange)**
+        *Offense-in-a-box creators.*
+        - **Criteria:** Freshman + High Usage + High Assists
+        - **Examples:** Trae Young, Luka, Cade
+        
+        **📊 Efficiency God (Blue)**
+        *Advanced stats darlings.*
+        - **Criteria:** High BPM + Efficient Shooting + Low Turnovers
+        - **Examples:** Jokic, Brandon Clarke
+        
+        **⚠️ Red Flags (Grey)**
+        - **Undersized Paint Hustler:** Short bigs with no shot.
+        - **Inefficient Volume:** Short scorers with low efficiency.
+        """)
+
+# Filter Data for Selected Year
 year_df = df[df['year'] == selected_year].sort_values('star_prob', ascending=False).reset_index(drop=True)
 
 # 4. Header Section
@@ -64,47 +92,27 @@ st.markdown("Predicting future NBA stars using **XGBoost** and **Archetype Class
 
 st.divider()
 
-# 5. Top Metrics Row (With Comparison Context)
+# 5. Top Metrics Row
 if not year_df.empty:
     top_prospect = year_df.iloc[0]
     avg_star_prob = year_df['star_prob'].mean()
     
-    # Create 4 columns for a dashboard feel
     m1, m2, m3, m4 = st.columns(4)
-    
-    with m1:
-        st.metric("🥇 Top Prospect", top_prospect['player_name'])
-    
-    with m2:
-        st.metric(
-            "⭐ Star Probability", 
-            f"{top_prospect['star_prob']:.1%}",
-            delta=f"{top_prospect['star_prob'] - avg_star_prob:.1%} vs Avg"
-        )
-        
-    with m3:
-        st.metric("🧬 Archetype", top_prospect['archetype_note'])
-        
-    with m4:
-        st.metric("🔥 Impact (BPM)", round(top_prospect['bpm_max'], 1))
+    with m1: st.metric("🥇 Top Prospect", top_prospect['player_name'])
+    with m2: st.metric("⭐ Star Probability", f"{top_prospect['star_prob']:.1%}", delta=f"{top_prospect['star_prob'] - avg_star_prob:.1%} vs Avg")
+    with m3: st.metric("🧬 Archetype", top_prospect['archetype_note'])
+    with m4: st.metric("🔥 Impact (BPM)", round(top_prospect['bpm_max'], 1))
 
 # 6. Main Content Area: TABS
-# This separates the visual analysis from the raw data
 tab_chart, tab_data = st.tabs(["📈 Visual Analysis", "💾 Deep Dive Data"])
 
 with tab_chart:
     if not year_df.empty:
-        # A. Clean Noise
-        # Filter out low-probability players UNLESS they have high usage
-        clean_df = year_df[
-            (year_df['star_prob'] > 0.01) | 
-            (year_df['usg_max'] > 30.0)
-        ].copy()
-
-        # B. Safe Size
+        # A. Clean Noise (Hide low prob players unless high usage)
+        clean_df = year_df[(year_df['star_prob'] > 0.01) | (year_df['usg_max'] > 30.0)].copy()
         clean_df['plot_size'] = clean_df['bpm_max'].clip(lower=0.1)
 
-        # C. Plot
+        # B. Plot
         fig = px.scatter(
             clean_df,
             x="usg_max",
@@ -112,31 +120,20 @@ with tab_chart:
             color="archetype_note",
             hover_name="player_name",
             size="plot_size",
-            # Add extra data to the hover tooltip
             hover_data={
-                "height_in": True, 
-                "ast_per": True, 
-                "bpm_max": True,
-                "stock_rate": True,
-                "treerate": True,
-                "plot_size": False
+                "height_in": True, "ast_per": True, "bpm_max": True,
+                "stock_rate": True, "treerate": True, "plot_size": False
             },
             title=f"<b>{selected_year} Tier List: Usage vs. Potential</b>",
-            labels={
-                "usg_max": "Usage Rate (%)", 
-                "star_prob": "Star Probability",
-                "stock_rate": "Stock % (Blk+Stl)",
-                "treerate": "3P Attempt Rate"
-            },
-            # MAP YOUR ARCHETYPES TO COLORS HERE
+            labels={"usg_max": "Usage Rate (%)", "star_prob": "Star Probability"},
             color_discrete_map={
-                "Monstar": "#800080",            # Purple for the GOATs
+                "Monstar": "#800080",            # Purple
                 "Alien": "#ff2b2b",              # Red
                 "Heliocentric Engine": "#ffa600",# Orange
                 "Efficiency God": "#0068c9",     # Blue
                 "Undersized Paint Hustler": "#808080",
                 "Inefficient Volume": "#d3d3d3",
-                "": "#d3d3d3"                    # Grey for standard players
+                "": "#d3d3d3"
             },
             opacity=0.85
         )
@@ -145,19 +142,13 @@ with tab_chart:
         fig.add_hline(y=0.60, line_dash="dot", line_color="gold", annotation_text="MVP Tier")
         fig.add_hline(y=0.45, line_dash="dot", line_color="silver", annotation_text="All-Star Tier")
 
-        # D. DYNAMIC LABELS ( controlled by slider )
+        # C. Dynamic Labels
         top_prospects = clean_df.sort_values('star_prob', ascending=False).head(num_labels)
-        
-        # Avoid overlap logic
         for i, row in top_prospects.iterrows():
-            shift_y = 15 if i % 2 == 0 else -15 # Alternate up/down
-            
+            shift_y = 15 if i % 2 == 0 else -15
             fig.add_annotation(
-                x=row['usg_max'],
-                y=row['star_prob'],
-                text=row['player_name'],
-                showarrow=False,
-                yshift=shift_y,
+                x=row['usg_max'], y=row['star_prob'],
+                text=row['player_name'], showarrow=False, yshift=shift_y,
                 font=dict(size=11, color="black")
             )
 
@@ -169,25 +160,14 @@ with tab_chart:
 
 with tab_data:
     st.subheader("📋 Scouting Database")
-    
-    # Search Filter
     search_term = st.text_input("🔍 Search Player:", "")
-    if search_term:
-        display_df = year_df[year_df['player_name'].str.contains(search_term, case=False)]
-    else:
-        display_df = year_df
+    display_df = year_df[year_df['player_name'].str.contains(search_term, case=False)] if search_term else year_df
 
-    # Define columns to show in table
-    # We use .get() to avoid errors if a column is missing in older CSVs
+    # Smart Columns
     table_cols = ['player_name', 'star_prob', 'archetype_note', 'height_in', 'bpm_max', 'usg_max', 'ts_used']
-    
-    # Add new V8 columns if they exist
-    if 'stock_rate' in display_df.columns:
-        table_cols.append('stock_rate')
-    if 'treerate' in display_df.columns:
-        table_cols.append('treerate')
+    if 'stock_rate' in display_df.columns: table_cols.append('stock_rate')
+    if 'treerate' in display_df.columns: table_cols.append('treerate')
 
-    # Configure Table
     st.dataframe(
         display_df[table_cols],
         column_config={
@@ -200,7 +180,5 @@ with tab_data:
             "stock_rate": st.column_config.NumberColumn("Stock %", format="%.1f"),
             "treerate": st.column_config.NumberColumn("3P Rate", format="%.2f"),
         },
-        use_container_width=True,
-        hide_index=True,
-        height=600
+        use_container_width=True, hide_index=True, height=600
     )
