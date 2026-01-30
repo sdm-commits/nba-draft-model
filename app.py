@@ -5,7 +5,7 @@ import plotly.express as px
 # 1. Page Configuration (Must be first)
 st.set_page_config(
     page_title="NBA Draft Oracle", 
-    page_icon="🏀",
+    page_icon="🏀", 
     layout="wide"
 )
 
@@ -24,6 +24,11 @@ st.markdown("""
 def load_data():
     try:
         df = pd.read_csv('nba_draft_predictions.csv')
+        # Fill missing numeric values with 0 to prevent plotting errors
+        cols_to_fill = ['usg_max', 'star_prob', 'bpm_max', 'ast_per', 'stock_rate', 'treerate', 'ts_used']
+        for col in cols_to_fill:
+            if col in df.columns:
+                df[col] = df[col].fillna(0)
         return df
     except FileNotFoundError:
         return pd.DataFrame()
@@ -44,11 +49,11 @@ with st.sidebar:
     
     st.divider()
     
-    # LABEL CONTROL: This fixes your messy plot issue!
+    # LABEL CONTROL
     st.subheader("🎨 Chart Settings")
-    num_labels = st.slider("Number of players to label:", min_value=0, max_value=10, value=5)
+    num_labels = st.slider("Number of players to label:", min_value=0, max_value=20, value=5)
     
-    st.info("💡 Tip: Reduce labels if names are overlapping.")
+    st.info("💡 Tip: 'Monstars' (Purple) represent generational statistical anomalies.")
 
 # Filter Data
 year_df = df[df['year'] == selected_year].sort_values('star_prob', ascending=False).reset_index(drop=True)
@@ -90,6 +95,7 @@ tab_chart, tab_data = st.tabs(["📈 Visual Analysis", "💾 Deep Dive Data"])
 with tab_chart:
     if not year_df.empty:
         # A. Clean Noise
+        # Filter out low-probability players UNLESS they have high usage
         clean_df = year_df[
             (year_df['star_prob'] > 0.01) | 
             (year_df['usg_max'] > 30.0)
@@ -106,74 +112,23 @@ with tab_chart:
             color="archetype_note",
             hover_name="player_name",
             size="plot_size",
+            # Add extra data to the hover tooltip
             hover_data={
                 "height_in": True, 
                 "ast_per": True, 
                 "bpm_max": True,
+                "stock_rate": True,
+                "treerate": True,
                 "plot_size": False
             },
             title=f"<b>{selected_year} Tier List: Usage vs. Potential</b>",
-            labels={"usg_max": "Usage Rate (%)", "star_prob": "Star Probability"},
-            color_discrete_map={
-                "Alien": "#ff2b2b", 
-                "Heliocentric Engine": "#ffa600", 
-                "Efficiency God": "#0068c9", 
-                "Jumbo Creator": "#83c9ff", 
-                "Scoring Guard": "#ff4b4b", 
-                "Volatile Wing": "#808080",
-                "": "#d3d3d3"
+            labels={
+                "usg_max": "Usage Rate (%)", 
+                "star_prob": "Star Probability",
+                "stock_rate": "Stock % (Blk+Stl)",
+                "treerate": "3P Attempt Rate"
             },
-            opacity=0.85
-        )
-
-        # Tier Lines
-        fig.add_hline(y=0.60, line_dash="dot", line_color="gold", annotation_text="MVP Tier")
-        fig.add_hline(y=0.45, line_dash="dot", line_color="silver", annotation_text="All-Star Tier")
-
-        # D. DYNAMIC LABELS ( controlled by slider )
-        top_prospects = clean_df.sort_values('star_prob', ascending=False).head(num_labels)
-        
-        # We start with a set of positions to try to avoid overlap
-        # This is a simple trick: alternate shifting text up and down
-        for i, row in top_prospects.iterrows():
-            shift_y = 15 if i % 2 == 0 else -15 # Alternate up/down
-            
-            fig.add_annotation(
-                x=row['usg_max'],
-                y=row['star_prob'],
-                text=row['player_name'],
-                showarrow=False,
-                yshift=shift_y,
-                font=dict(size=11, color="black")
-            )
-
-        fig.update_layout(plot_bgcolor="white", height=600, legend=dict(orientation="h", y=-0.2))
-        fig.update_xaxes(showgrid=True, gridcolor='#f0f0f0')
-        fig.update_yaxes(showgrid=True, gridcolor='#f0f0f0', tickformat=".0%")
-
-        st.plotly_chart(fig, use_container_width=True)
-
-with tab_data:
-    st.subheader("📋 Scouting Database")
-    
-    # Search Filter
-    search_term = st.text_input("🔍 Search Player:", "")
-    if search_term:
-        display_df = year_df[year_df['player_name'].str.contains(search_term, case=False)]
-    else:
-        display_df = year_df
-
-    # Configure Table
-    st.dataframe(
-        display_df[['player_name', 'star_prob', 'archetype_note', 'height_in', 'bpm_max', 'usg_max', 'ast_per']],
-        column_config={
-            "player_name": "Player",
-            "star_prob": st.column_config.ProgressColumn("Star Probability", format="%.1f%%", min_value=0, max_value=1),
-            "archetype_note": "Archetype",
-            "bpm_max": st.column_config.NumberColumn("BPM", format="%.1f"),
-            "usg_max": st.column_config.NumberColumn("Usage", format="%.1f%%"),
-        },
-        use_container_width=True,
-        hide_index=True,
-        height=600
-    )
+            # MAP YOUR ARCHETYPES TO COLORS HERE
+            color_discrete_map={
+                "Monstar": "#800080",            # Purple for the GOATs
+                "Alien": "#ff2b2
