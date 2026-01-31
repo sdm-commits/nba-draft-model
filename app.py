@@ -1,271 +1,128 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import numpy as np
-import os
 
-# ==============================================================================
-# 1. SETUP & CONFIG
-# ==============================================================================
-st.set_page_config(page_title="NBA Draft Model", layout="wide", page_icon="🏀")
+# 1. Page Configuration
+st.set_page_config(
+    page_title="NBA Draft Oracle", 
+    page_icon="🏀", 
+    layout="wide"
+)
 
-# Custom CSS for "Scouting Card" feel
 st.markdown("""
 <style>
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 5px solid #ff4b4b;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    }
-    .big-stat {
-        font-size: 24px;
-        font-weight: bold;
-        color: #0e1117;
-    }
-    .sub-stat {
-        font-size: 14px;
-        color: #555;
-        line-height: 1.5;
-    }
-    .role-badge {
-        background-color: #ff4b4b;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 5px;
-        font-size: 0.8em;
-        font-weight: bold;
-    }
+    div[data-testid="stMetricValue"] { font-size: 24px; color: #333; }
+    a { text-decoration: none; color: #0068c9 !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
-# Plain English Archetype Mapping (Matches your V8 Model)
-ARCH_MAP = {
-    "Heliocentric Engine": "Primary Creator (Luka/Trae)",
-    "Monstar": "Physical Force (Zion/AD)",
-    "Alien": "Unicorn (Wemby/Chet)",
-    "Efficiency God": "Efficient Connector (Jokic/Sengun)",
-    "Two-Way Wing": "Elite 3-and-D (Kawhi/Mikal)",
-    "Low Ceiling Senior": "Safe Floor / Low Ceiling",
-    "Inefficient Volume": "Volume Scorer Risk",
-    "Undersized Paint Hustler": "Undersized Energy Big",
-    "": "Rotation Player / Role"
-}
-
-# ==============================================================================
-# 2. LOAD DATA
-# ==============================================================================
+# 2. Load Data
 @st.cache_data
 def load_data():
-    file_path = "nba_draft_predictions.csv"
-    
-    if not os.path.exists(file_path):
-        return None
-
-    # Load the csv
-    df = pd.read_csv(file_path) 
-    
-    # 1. Map Archetypes to Plain English
-    df['scout_role'] = df['archetype_note'].map(ARCH_MAP).fillna(df['archetype_note'])
-    
-    # 2. Format Height
-    def fmt_height(h):
-        if pd.isna(h) or h == 0: return "N/A"
-        ft = int(h // 12)
-        inch = int(h % 12)
-        return f"{ft}'{inch}\""
-    
-    df['height_fmt'] = df['height_in'].apply(fmt_height)
-    
-    # 3. Safety Fill for Missing Cols (Just in case)
-    if 'ts_used' not in df.columns: df['ts_used'] = 0.55
-    if 'stock_rate' not in df.columns: df['stock_rate'] = 0.0
-    
-    return df
+    try:
+        df = pd.read_csv('nba_draft_predictions.csv')
+        cols_to_fill = ['usg_max', 'star_prob', 'bpm_max', 'ast_per', 'stock_rate', 'treerate', 'ts_used']
+        for col in cols_to_fill:
+            if col in df.columns:
+                df[col] = df[col].fillna(0)
+        
+        # --- NEW: GENERATE SCOUTING LINKS ---
+        # This creates a Google Search URL for every player
+        if 'player_name' in df.columns:
+            df['search_url'] = df['player_name'].apply(
+                lambda x: f"https://www.google.com/search?q={x.replace(' ', '+')}+basketball+highlights&tbm=vid"
+            )
+        
+        return df
+    except FileNotFoundError:
+        return pd.DataFrame()
 
 df = load_data()
 
-if df is None:
-    st.error("⚠️ Data file `nba_draft_predictions.csv` not found. Please run your model notebook and download the CSV to this folder.")
+if df.empty:
+    st.error("⚠️ Data file not found! Please upload 'nba_draft_predictions.csv'.")
     st.stop()
 
-# ==============================================================================
-# 3. SIDEBAR CONTROLS
-# ==============================================================================
-st.sidebar.header("🔍 Filters")
-
-# Filter Year
-all_years = sorted(df['year'].unique(), reverse=True)
-selected_year = st.sidebar.selectbox("Draft Class", all_years)
-
-# Filter Data to Year
-df_year = df[df['year'] == selected_year].copy()
-df_year = df_year.sort_values("star_prob", ascending=False).reset_index(drop=True)
-df_year['Rank'] = df_year.index + 1
-
-# View Mode
-view_mode = st.sidebar.radio("View Mode", ["Simple (Scouting)", "Analyst (Deep Dive)"])
-
-# Highlight Player
-search_term = st.sidebar.text_input("Highlight Player", "")
-
-# ==============================================================================
-# 4. MAIN DASHBOARD
-# ==============================================================================
-
-# Header
-st.title(f"🏀 {selected_year} NBA Draft Board")
-st.markdown(f"""
-Showing **{len(df_year)}** prospects from the {selected_year} class.
-This model identifies players with statistical profiles similar to historical All-Stars.
-""")
-
-# TOP SECTION: THE BOARD (Top 3 Cards)
-if view_mode == "Simple (Scouting)":
-    st.subheader(f"🏆 Top Prospects")
+# 3. Sidebar
+with st.sidebar:
+    st.header("🔍 Analysis Controls")
+    years_available = sorted(df['year'].unique(), reverse=True)
+    selected_year = st.selectbox("Select Draft Class", years_available)
     
-    # Iterate through Top 3 for "Card" View
-    cols = st.columns(3)
-    for i, player in df_year.head(3).iterrows():
-        role_label = player['scout_role'] if player['scout_role'] else "Standard Prospect"
+    st.divider()
+    
+    st.subheader("🎨 Chart Settings")
+    num_labels = st.slider("Number of labels:", 0, 20, 5)
+    
+    st.divider()
+
+    with st.expander("🧬 Archetype Glossary"):
+        st.markdown("""
+        **🦄 Monstar (Purple)**: Generational outliers (BPM > 11.5).
+        **👽 Alien (Red)**: Unicorn bigs (High Stocks + Usage).
+        **🚀 Heliocentric (Orange)**: High Usage + Assists creators.
+        **📊 Efficiency God (Blue)**: High BPM + Efficient + Low TOV.
+        """)
+
+# Filter Data
+year_df = df[df['year'] == selected_year].sort_values('star_prob', ascending=False).reset_index(drop=True)
+
+# 4. Header
+st.title(f"🏀 {selected_year} NBA Draft Oracle")
+st.markdown("Predicting future NBA stars using **XGBoost**. Click a player's name to see their **Highlights**.")
+
+st.divider()
+
+# 5. Top Metrics
+if not year_df.empty:
+    top_prospect = year_df.iloc[0]
+    avg_star_prob = year_df['star_prob'].mean()
+    
+    m1, m2, m3, m4 = st.columns(4)
+    with m1: st.metric("🥇 Top Prospect", top_prospect['player_name'])
+    with m2: st.metric("⭐ Star Prob", f"{top_prospect['star_prob']:.1%}", delta=f"{top_prospect['star_prob'] - avg_star_prob:.1%}")
+    with m3: st.metric("🧬 Archetype", top_prospect['archetype_note'])
+    with m4: st.metric("🔥 Impact (BPM)", round(top_prospect['bpm_max'], 1))
+
+# 6. Main Content
+tab_chart, tab_data = st.tabs(["📈 Visual Analysis", "💾 Deep Dive Data"])
+
+with tab_chart:
+    if not year_df.empty:
+        clean_df = year_df[(year_df['star_prob'] > 0.01) | (year_df['usg_max'] > 30.0)].copy()
+        clean_df['plot_size'] = clean_df['bpm_max'].clip(lower=0.1)
+
+        fig = px.scatter(
+            clean_df, x="usg_max", y="star_prob", color="archetype_note",
+            hover_name="player_name", size="plot_size",
+            hover_data={"height_in": True, "ast_per": True, "bpm_max": True, "stock_rate": True, "treerate": True, "plot_size": False},
+            title=f"<b>{selected_year} Usage vs. Potential</b>",
+            labels={"usg_max": "Usage Rate (%)", "star_prob": "Star Probability"},
+            color_discrete_map={
+                "Monstar": "#800080", "Alien": "#ff2b2b", "Heliocentric Engine": "#ffa600",
+                "Efficiency God": "#0068c9", "Undersized Paint Hustler": "#808080", "Inefficient Volume": "#d3d3d3", "": "#d3d3d3"
+            },
+            opacity=0.85
+        )
         
-        with cols[i]:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>#{i+1} {player['player_name']}</h3>
-                <span class="role-badge">{role_label}</span>
-                <p class="big-stat" style="margin-top: 10px;">{player['star_prob']*100:.1f}% <span style="font-size:14px; color:#555;">Star Prob</span></p>
-                <div class="sub-stat">
-                📏 <b>{player['height_fmt']}</b> | 🎓 Exp: {player['years_exp']:.0f}<br>
-                📈 Usage: {player['usg_max']:.1f}%<br>
-                🛡️ Stocks: {player['stock_rate']:.1f}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("---")
+        fig.add_hline(y=0.60, line_dash="dot", line_color="gold", annotation_text="MVP Tier")
+        fig.add_hline(y=0.45, line_dash="dot", line_color="silver", annotation_text="All-Star Tier")
 
-# ==============================================================================
-# 5. THE SCATTER PLOT (TRUST & CONTEXT)
-# ==============================================================================
-st.subheader("📊 The Landscape: Usage vs. Probability")
+        top_prospects = clean_df.sort_values('star_prob', ascending=False).head(num_labels)
+        for i, row in top_prospects.iterrows():
+            shift_y = 15 if i % 2 == 0 else -15
+            fig.add_annotation(x=row['usg_max'], y=row['star_prob'], text=row['player_name'], showarrow=False, yshift=shift_y, font=dict(size=11, color="black"))
 
-# Prepare Plot Data
-df_plot = df_year.copy()
-df_plot["star_pct"] = (df_plot["star_prob"] * 100).round(1)
-df_plot["usg_fmt"] = df_plot["usg_max"].round(1)
-df_plot["stocks_fmt"] = df_plot["stock_rate"].round(1)
-df_plot["ts_fmt"] = (df_plot["ts_used"] * 100).round(1)
+        fig.update_layout(plot_bgcolor="white", height=600, legend=dict(orientation="h", y=-0.2))
+        fig.update_xaxes(showgrid=True, gridcolor='#f0f0f0')
+        fig.update_yaxes(showgrid=True, gridcolor='#f0f0f0', tickformat=".0%")
+        st.plotly_chart(fig, use_container_width=True)
 
-# --- FIX START: HANDLE NEGATIVE SIZES ---
-# BPM can be negative. We shift it so the minimum value is 10 (small bubble)
-min_bpm = df_plot['bpm_max'].min()
-if min_bpm < 0:
-    df_plot['plot_size'] = df_plot['bpm_max'] + abs(min_bpm) + 10
-else:
-    df_plot['plot_size'] = df_plot['bpm_max'] + 10
-# --- FIX END ---
+with tab_data:
+    st.subheader("📋 Scouting Database")
+    search_term = st.text_input("🔍 Search Player:", "")
+    display_df = year_df[year_df['player_name'].str.contains(search_term, case=False)] if search_term else year_df
 
-# Color Logic
-if search_term:
-    df_plot['color_group'] = np.where(df_plot['player_name'].str.contains(search_term, case=False), "Highlight", "Others")
-    color_map = {"Highlight": "#ff4b4b", "Others": "#dddddd"}
-else:
-    df_plot['color_group'] = df_plot['scout_role']
-    color_map = None 
-
-fig = px.scatter(
-    df_plot,
-    x="usg_max",
-    y="star_prob",
-    color="color_group",
-    color_discrete_map=color_map,
-    size="plot_size",      # <--- CHANGED THIS from 'bpm_max' to 'plot_size'
-    hover_name="player_name",
-    title=f"{selected_year} Draft Landscape (Size = BPM Impact)",
-    labels={"usg_max": "Usage Rate (%)", "star_prob": "Star Probability"},
-    height=600,
-    custom_data=[
-        "scout_role",    # 0
-        "star_pct",      # 1
-        "usg_fmt",       # 2
-        "height_fmt",    # 3
-        "ts_fmt",        # 4
-        "stocks_fmt"     # 5
-    ]
-)
-
-# The Clean "Scouting Card" Hover Template
-fig.update_traces(
-    hovertemplate=
-    "<b>%{hovertext}</b><br>" +
-    "----------------<br>" +
-    "📝 <b>Role:</b> %{customdata[0]}<br>" +
-    "⭐ <b>Star Prob:</b> %{customdata[1]}%<br>" +
-    "<br>" +
-    "📊 <b>Stats Profile:</b><br>" +
-    "• Usage: %{customdata[2]}%<br>" +
-    "• Efficiency (TS): %{customdata[4]}%<br>" +
-    "• Height: %{customdata[3]}<br>" +
-    "• Defensive Stocks: %{customdata[5]}<br>" +
-    "<extra></extra>"
-)
-
-# Add "Star Zone" Rectangle
-fig.add_shape(type="rect",
-    x0=25, y0=0.40, x1=40, y1=1.0,
-    line=dict(color="Green", width=1, dash="dot"),
-    fillcolor="Green", opacity=0.1,
-    layer="below"
-)
-fig.add_annotation(x=32, y=0.9, text="Superstar Zone", showarrow=False, font=dict(color="green"))
-
-st.plotly_chart(fig, use_container_width=True)
-
-# ==============================================================================
-# 6. THE DATA TABLE
-# ==============================================================================
-st.subheader("📋 Detailed Board")
-
-# Search Filter in Table
-if search_term:
-    df_year = df_year[df_year['player_name'].str.contains(search_term, case=False)]
-
-if view_mode == "Simple (Scouting)":
-    # Clean Columns for public view
-    show_cols = ['Rank', 'player_name', 'scout_role', 'star_prob', 'height_fmt', 'years_exp', 'usg_max', 'ts_used']
-    
-    # Rename for display
-    display_df = df_year[show_cols].rename(columns={
-        'player_name': 'Player',
-        'scout_role': 'Archetype',
-        'star_prob': 'Star Probability',
-        'height_fmt': 'Height',
-        'years_exp': 'Exp',
-        'usg_max': 'Usage %',
-        'ts_used': 'TS %'
-    })
-
-    st.dataframe(
-        display_df.style.format({
-            "Star Probability": "{:.1%}",
-            "Usage %": "{:.1f}%",
-            "Exp": "{:.0f}",
-            "TS %": "{:.1%}"
-        }).background_gradient(subset=['Star Probability'], cmap="Greens"),
-        use_container_width=True,
-        hide_index=True
-    )
-
-else:
-    # Analyst Mode (Everything)
-    st.dataframe(
-        df_year.style.format({
-            "star_prob": "{:.1%}",
-            "bpm_max": "{:.1f}",
-            "ts_used": "{:.1%}",
-            "stock_rate": "{:.1f}"
-        }).background_gradient(subset=['star_prob'], cmap="RdYlGn"),
-        use_container_width=True
-    )
+    # --- TABLE CONFIGURATION ---
+    # We define standard columns
+    table_cols = ['player_name', '
