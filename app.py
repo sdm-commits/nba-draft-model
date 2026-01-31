@@ -66,6 +66,12 @@ def load_data():
 
     df = pd.read_csv(file_path) 
     
+    # --- FILTERING LOGIC ---
+    # Exclude players with 0% Usage AND < 0.1% Star Probability
+    # This removes empty rows or glitched data entries
+    mask_exclude = (df['usg_max'] <= 0.0) & (df['star_prob'] < 0.001)
+    df = df[~mask_exclude].copy()
+
     # 1. Map Archetypes to Plain English
     df['scout_role'] = df['archetype_note'].map(ARCH_MAP).fillna(df['archetype_note'])
     
@@ -81,7 +87,7 @@ def load_data():
     # 3. Safety Fill & Confidence Logic
     if 'ts_used' not in df.columns: df['ts_used'] = 0.55
     if 'stock_rate' not in df.columns: df['stock_rate'] = 0.0
-    if 'years_exp' not in df.columns: df['years_exp'] = 1.0 # Default fallback
+    if 'years_exp' not in df.columns: df['years_exp'] = 1.0 
     
     # Simple Confidence Bucket
     df['confidence'] = np.where(df['years_exp'] >= 2.0, "High (Vet)", "Med (Young)")
@@ -119,7 +125,6 @@ df_year['Rank'] = df_year.index + 1
 # ==============================================================================
 st.title(f"🏀 {selected_year} NBA Draft Board")
 
-# The "What this means" sentence
 st.markdown("""
 > **What is this?** This model estimates the probability of a player becoming a **Top-Tier Starter** based on historical college-to-NBA progression (2010-2024).  
 > It values **Efficiency, Age, and Physical Tools** over raw points per game. **It is a ranking tool, not a guarantee.**
@@ -132,23 +137,26 @@ if view_mode == "Simple (Scouting)":
     st.subheader(f"🏆 Top Prospects")
     
     # Top 3 Cards
-    cols = st.columns(3)
-    for i, player in df_year.head(3).iterrows():
-        role_label = player['scout_role'] if player['scout_role'] else "Standard Prospect"
-        
-        with cols[i]:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>#{i+1} {player['player_name']}</h3>
-                <span class="role-badge">{role_label}</span>
-                <p class="big-stat" style="margin-top: 10px;">{player['star_prob']*100:.1f}% <span style="font-size:14px; color:#555;">Star Prob</span></p>
-                <div class="sub-stat">
-                📏 <b>{player['height_fmt']}</b> | 🔒 Conf: {player['confidence']}<br>
-                📈 Usage: {player['usg_max']:.1f}%<br>
-                🛡️ Stocks: {player['stock_rate']:.1f}
+    if len(df_year) > 0:
+        cols = st.columns(min(3, len(df_year)))
+        for i, player in df_year.head(len(cols)).iterrows():
+            role_label = player['scout_role'] if player['scout_role'] else "Standard Prospect"
+            
+            with cols[i]:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>#{i+1} {player['player_name']}</h3>
+                    <span class="role-badge">{role_label}</span>
+                    <p class="big-stat" style="margin-top: 10px;">{player['star_prob']*100:.1f}% <span style="font-size:14px; color:#555;">Star Prob</span></p>
+                    <div class="sub-stat">
+                    📏 <b>{player['height_fmt']}</b> | 🔒 Conf: {player['confidence']}<br>
+                    📈 Usage: {player['usg_max']:.1f}%<br>
+                    🛡️ Stocks: {player['stock_rate']:.1f}
+                    </div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+    else:
+        st.write("No prospects found for this year matching criteria.")
     
     st.markdown("---")
 
@@ -157,79 +165,84 @@ if view_mode == "Simple (Scouting)":
 # ==============================================================================
 st.subheader("📊 The Landscape: Usage vs. Efficiency")
 
-# Prepare Plot Data
-df_plot = df_year.copy()
-df_plot["star_pct"] = (df_plot["star_prob"] * 100).round(1)
-df_plot["usg_fmt"] = df_plot["usg_max"].round(1)
-df_plot["stocks_fmt"] = df_plot["stock_rate"].round(1)
-df_plot["ts_fmt"] = (df_plot["ts_used"] * 100).round(1)
+if len(df_year) > 0:
+    # Prepare Plot Data
+    df_plot = df_year.copy()
+    df_plot["star_pct"] = (df_plot["star_prob"] * 100).round(1)
+    df_plot["usg_fmt"] = df_plot["usg_max"].round(1)
+    df_plot["stocks_fmt"] = df_plot["stock_rate"].round(1)
+    df_plot["ts_fmt"] = (df_plot["ts_used"] * 100).round(1)
 
-# Fix Negative Size Bug
-min_bpm = df_plot['bpm_max'].min()
-if min_bpm < 0:
-    df_plot['plot_size'] = df_plot['bpm_max'] + abs(min_bpm) + 10
+    # Fix Negative Size Bug
+    min_bpm = df_plot['bpm_max'].min()
+    # Handle case where min_bpm might be NaN if empty
+    if pd.isna(min_bpm): min_bpm = 0
+    
+    if min_bpm < 0:
+        df_plot['plot_size'] = df_plot['bpm_max'] + abs(min_bpm) + 10
+    else:
+        df_plot['plot_size'] = df_plot['bpm_max'] + 10
+
+    # Color Logic
+    if search_term:
+        df_plot['color_group'] = np.where(df_plot['player_name'].str.contains(search_term, case=False), "Highlight", "Others")
+        color_map = {"Highlight": "#ff4b4b", "Others": "#dddddd"}
+    else:
+        df_plot['color_group'] = df_plot['scout_role']
+        color_map = None 
+
+    # Plotly Chart
+    fig = px.scatter(
+        df_plot,
+        x="usg_max",
+        y="star_prob",
+        color="color_group",
+        color_discrete_map=color_map,
+        size="plot_size",  # Safe size column
+        hover_name="player_name",
+        title=f"{selected_year} Draft Landscape (Size = BPM Impact)",
+        labels={"usg_max": "Usage Rate (Offensive Load)", "star_prob": "Star Probability"},
+        height=600,
+        custom_data=[
+            "scout_role",    # 0
+            "star_pct",      # 1
+            "usg_fmt",       # 2
+            "height_fmt",    # 3
+            "ts_fmt",        # 4
+            "stocks_fmt",    # 5
+            "confidence"     # 6
+        ]
+    )
+
+    # The Clean "Scouting Card" Hover
+    fig.update_traces(
+        hovertemplate=
+        "<b>%{hovertext}</b><br>" +
+        "----------------<br>" +
+        "📝 <b>Role:</b> %{customdata[0]}<br>" +
+        "⭐ <b>Star Prob:</b> %{customdata[1]}%<br>" +
+        "🔒 <b>Confidence:</b> %{customdata[6]}<br>" +
+        "<br>" +
+        "📊 <b>Stats Profile:</b><br>" +
+        "• Usage: %{customdata[2]}%<br>" +
+        "• Efficiency (TS): %{customdata[4]}%<br>" +
+        "• Height: %{customdata[3]}<br>" +
+        "• Def Activity: %{customdata[5]}<br>" +
+        "<extra></extra>"
+    )
+
+    # "Typical NBA Star Zone" Box
+    fig.add_shape(type="rect",
+        x0=25, y0=0.40, x1=40, y1=1.0,
+        line=dict(color="Green", width=1, dash="dot"),
+        fillcolor="Green", opacity=0.1,
+        layer="below"
+    )
+    fig.add_annotation(x=32, y=0.9, text="Superstar Zone", showarrow=False, font=dict(color="green"))
+
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    df_plot['plot_size'] = df_plot['bpm_max'] + 10
-
-# Color Logic
-if search_term:
-    df_plot['color_group'] = np.where(df_plot['player_name'].str.contains(search_term, case=False), "Highlight", "Others")
-    color_map = {"Highlight": "#ff4b4b", "Others": "#dddddd"}
-else:
-    df_plot['color_group'] = df_plot['scout_role']
-    color_map = None 
-
-# Plotly Chart
-fig = px.scatter(
-    df_plot,
-    x="usg_max",
-    y="star_prob",
-    color="color_group",
-    color_discrete_map=color_map,
-    size="plot_size",  # Safe size column
-    hover_name="player_name",
-    title=f"{selected_year} Draft Landscape (Size = BPM Impact)",
-    labels={"usg_max": "Usage Rate (Offensive Load)", "star_prob": "Star Probability"},
-    height=600,
-    # Pass clean data for hover
-    custom_data=[
-        "scout_role",    # 0
-        "star_pct",      # 1
-        "usg_fmt",       # 2
-        "height_fmt",    # 3
-        "ts_fmt",        # 4
-        "stocks_fmt",    # 5
-        "confidence"     # 6
-    ]
-)
-
-# The Clean "Scouting Card" Hover
-fig.update_traces(
-    hovertemplate=
-    "<b>%{hovertext}</b><br>" +
-    "----------------<br>" +
-    "📝 <b>Role:</b> %{customdata[0]}<br>" +
-    "⭐ <b>Star Prob:</b> %{customdata[1]}%<br>" +
-    "🔒 <b>Confidence:</b> %{customdata[6]}<br>" +
-    "<br>" +
-    "📊 <b>Stats Profile:</b><br>" +
-    "• Usage: %{customdata[2]}%<br>" +
-    "• Efficiency (TS): %{customdata[4]}%<br>" +
-    "• Height: %{customdata[3]}<br>" +
-    "• Def Activity: %{customdata[5]}<br>" +
-    "<extra></extra>"
-)
-
-# "Typical NBA Star Zone" Box
-fig.add_shape(type="rect",
-    x0=25, y0=0.40, x1=40, y1=1.0,
-    line=dict(color="Green", width=1, dash="dot"),
-    fillcolor="Green", opacity=0.1,
-    layer="below"
-)
-fig.add_annotation(x=32, y=0.9, text="Superstar Zone", showarrow=False, font=dict(color="green"))
-
-st.plotly_chart(fig, use_container_width=True)
+    st.info("Not enough data to generate scatter plot.")
 
 # ==============================================================================
 # 7. DATA TABLE
