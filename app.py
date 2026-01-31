@@ -158,13 +158,22 @@ df_plot["usg_fmt"] = df_plot["usg_max"].round(1)
 df_plot["stocks_fmt"] = df_plot["stock_rate"].round(1)
 df_plot["ts_fmt"] = (df_plot["ts_used"] * 100).round(1)
 
-# Color Logic: Highlight searched player, otherwise by Role
+# --- FIX START: HANDLE NEGATIVE SIZES ---
+# BPM can be negative. We shift it so the minimum value is 10 (small bubble)
+min_bpm = df_plot['bpm_max'].min()
+if min_bpm < 0:
+    df_plot['plot_size'] = df_plot['bpm_max'] + abs(min_bpm) + 10
+else:
+    df_plot['plot_size'] = df_plot['bpm_max'] + 10
+# --- FIX END ---
+
+# Color Logic
 if search_term:
     df_plot['color_group'] = np.where(df_plot['player_name'].str.contains(search_term, case=False), "Highlight", "Others")
     color_map = {"Highlight": "#ff4b4b", "Others": "#dddddd"}
 else:
     df_plot['color_group'] = df_plot['scout_role']
-    color_map = None # Auto assign
+    color_map = None 
 
 fig = px.scatter(
     df_plot,
@@ -172,7 +181,7 @@ fig = px.scatter(
     y="star_prob",
     color="color_group",
     color_discrete_map=color_map,
-    size="bpm_max", # Bubble size = Impact
+    size="plot_size",      # <--- CHANGED THIS from 'bpm_max' to 'plot_size'
     hover_name="player_name",
     title=f"{selected_year} Draft Landscape (Size = BPM Impact)",
     labels={"usg_max": "Usage Rate (%)", "star_prob": "Star Probability"},
