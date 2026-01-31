@@ -40,7 +40,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Plain English Archetype Mapping (Request #5)
+# Plain English Archetype Mapping
 ARCH_MAP = {
     "Heliocentric Engine": "Primary Creator",
     "Monstar": "Two-Way Dominant",
@@ -78,10 +78,10 @@ def load_data():
     
     df['height_fmt'] = df['height_in'].apply(fmt_height)
     
-    # 3. Safety Fill & Confidence Logic (Request #2)
-    # If we don't have raw minutes, we use Experience as a proxy for Confidence
+    # 3. Safety Fill & Confidence Logic
     if 'ts_used' not in df.columns: df['ts_used'] = 0.55
     if 'stock_rate' not in df.columns: df['stock_rate'] = 0.0
+    if 'years_exp' not in df.columns: df['years_exp'] = 1.0 # Default fallback
     
     # Simple Confidence Bucket
     df['confidence'] = np.where(df['years_exp'] >= 2.0, "High (Vet)", "Med (Young)")
@@ -103,7 +103,7 @@ st.sidebar.header("🔍 Filters")
 all_years = sorted(df['year'].unique(), reverse=True)
 selected_year = st.sidebar.selectbox("Draft Class", all_years)
 
-# View Mode (Request #8)
+# View Mode
 view_mode = st.sidebar.radio("View Mode", ["Simple (Scouting)", "Analyst (Deep Dive)"])
 
 # Highlight Player
@@ -119,7 +119,7 @@ df_year['Rank'] = df_year.index + 1
 # ==============================================================================
 st.title(f"🏀 {selected_year} NBA Draft Board")
 
-# Request #1: The "What this means" sentence
+# The "What this means" sentence
 st.markdown("""
 > **What is this?** This model estimates the probability of a player becoming a **Top-Tier Starter** based on historical college-to-NBA progression (2010-2024).  
 > It values **Efficiency, Age, and Physical Tools** over raw points per game. **It is a ranking tool, not a guarantee.**
@@ -144,7 +144,6 @@ if view_mode == "Simple (Scouting)":
                 <p class="big-stat" style="margin-top: 10px;">{player['star_prob']*100:.1f}% <span style="font-size:14px; color:#555;">Star Prob</span></p>
                 <div class="sub-stat">
                 📏 <b>{player['height_fmt']}</b> | 🔒 Conf: {player['confidence']}<br>
-                } stats]<br>
                 📈 Usage: {player['usg_max']:.1f}%<br>
                 🛡️ Stocks: {player['stock_rate']:.1f}
                 </div>
@@ -158,7 +157,7 @@ if view_mode == "Simple (Scouting)":
 # ==============================================================================
 st.subheader("📊 The Landscape: Usage vs. Efficiency")
 
-# Prepare Plot Data (Request #4 & #7)
+# Prepare Plot Data
 df_plot = df_year.copy()
 df_plot["star_pct"] = (df_plot["star_prob"] * 100).round(1)
 df_plot["usg_fmt"] = df_plot["usg_max"].round(1)
@@ -204,7 +203,7 @@ fig = px.scatter(
     ]
 )
 
-# Request #4: The Clean "Scouting Card" Hover
+# The Clean "Scouting Card" Hover
 fig.update_traces(
     hovertemplate=
     "<b>%{hovertext}</b><br>" +
@@ -221,7 +220,7 @@ fig.update_traces(
     "<extra></extra>"
 )
 
-# Request #4: "Typical NBA Star Zone" Box
+# "Typical NBA Star Zone" Box
 fig.add_shape(type="rect",
     x0=25, y0=0.40, x1=40, y1=1.0,
     line=dict(color="Green", width=1, dash="dot"),
