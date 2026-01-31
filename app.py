@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import numpy as np
+import os
 
 # ==============================================================================
 # 1. SETUP & CONFIG
@@ -16,30 +17,40 @@ st.markdown("""
         padding: 20px;
         border-radius: 10px;
         border-left: 5px solid #ff4b4b;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
     .big-stat {
         font-size: 24px;
         font-weight: bold;
+        color: #0e1117;
     }
     .sub-stat {
         font-size: 14px;
         color: #555;
+        line-height: 1.5;
+    }
+    .role-badge {
+        background-color: #ff4b4b;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 5px;
+        font-size: 0.8em;
+        font-weight: bold;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Plain English Archetype Mapping
+# Plain English Archetype Mapping (Matches your V8 Model)
 ARCH_MAP = {
-    "Heliocentric Engine": "Primary Creator",
-    "Monstar": "Two-Way Dominant",
-    "Alien": "Unicorn / High Upside",
-    "Efficiency God": "Efficient Finisher",
-    "Two-Way Wing": "3-and-D Plus",
-    "Sniper": "Elite Shooter",
+    "Heliocentric Engine": "Primary Creator (Luka/Trae)",
+    "Monstar": "Physical Force (Zion/AD)",
+    "Alien": "Unicorn (Wemby/Chet)",
+    "Efficiency God": "Efficient Connector (Jokic/Sengun)",
+    "Two-Way Wing": "Elite 3-and-D (Kawhi/Mikal)",
     "Low Ceiling Senior": "Safe Floor / Low Ceiling",
-    "Inefficient Volume": "Volume Scorer (Risk)",
-    "Pass First Guard": "Floor General",
-    "": "Role Player"
+    "Inefficient Volume": "Volume Scorer Risk",
+    "Undersized Paint Hustler": "Undersized Energy Big",
+    "": "Rotation Player / Role"
 }
 
 # ==============================================================================
@@ -47,41 +58,48 @@ ARCH_MAP = {
 # ==============================================================================
 @st.cache_data
 def load_data():
-    # Load the FIXED csv
-    df = pd.read_csv("nba_draft_predictions_v2.csv") 
+    file_path = "nba_draft_predictions.csv"
     
-    # 1. Create "Confidence" Score based on Minutes (Proxy for Sample Size)
-    # Assuming 'mp' or 'total_minutes' isn't explicitly in export, we improvise or use years_exp
-    # For now, let's just use years_exp + star_prob as a proxy for 'stability'
-    # Ideally, export 'total_minutes' from the model pipeline.
+    if not os.path.exists(file_path):
+        return None
+
+    # Load the csv
+    df = pd.read_csv(file_path) 
     
-    # 2. Map Archetypes to Plain English
+    # 1. Map Archetypes to Plain English
     df['scout_role'] = df['archetype_note'].map(ARCH_MAP).fillna(df['archetype_note'])
     
-    # 3. Format Height
+    # 2. Format Height
     def fmt_height(h):
-        if pd.isna(h): return "N/A"
+        if pd.isna(h) or h == 0: return "N/A"
         ft = int(h // 12)
         inch = int(h % 12)
         return f"{ft}'{inch}\""
     
     df['height_fmt'] = df['height_in'].apply(fmt_height)
     
+    # 3. Safety Fill for Missing Cols (Just in case)
+    if 'ts_used' not in df.columns: df['ts_used'] = 0.55
+    if 'stock_rate' not in df.columns: df['stock_rate'] = 0.0
+    
     return df
 
-try:
-    df = load_data()
-except FileNotFoundError:
-    st.error("⚠️ Data file not found. Please run the model pipeline and save 'nba_draft_predictions_v2.csv'.")
+df = load_data()
+
+if df is None:
+    st.error("⚠️ Data file `nba_draft_predictions.csv` not found. Please run your model notebook and download the CSV to this folder.")
     st.stop()
 
 # ==============================================================================
 # 3. SIDEBAR CONTROLS
 # ==============================================================================
 st.sidebar.header("🔍 Filters")
-selected_year = st.sidebar.selectbox("Draft Class", sorted(df['year'].unique(), reverse=True))
 
-# Filter to selected year
+# Filter Year
+all_years = sorted(df['year'].unique(), reverse=True)
+selected_year = st.sidebar.selectbox("Draft Class", all_years)
+
+# Filter Data to Year
 df_year = df[df['year'] == selected_year].copy()
 df_year = df_year.sort_values("star_prob", ascending=False).reset_index(drop=True)
 df_year['Rank'] = df_year.index + 1
@@ -89,34 +107,40 @@ df_year['Rank'] = df_year.index + 1
 # View Mode
 view_mode = st.sidebar.radio("View Mode", ["Simple (Scouting)", "Analyst (Deep Dive)"])
 
+# Highlight Player
+search_term = st.sidebar.text_input("Highlight Player", "")
+
 # ==============================================================================
 # 4. MAIN DASHBOARD
 # ==============================================================================
 
-# Header with "Trust Statement"
+# Header
 st.title(f"🏀 {selected_year} NBA Draft Board")
-st.markdown("""
-> **What is this?** This model estimates the probability of a player becoming a **Top-Tier Starter** based on historical college-to-NBA progression (2010-2024). 
-> It values **Efficiency, Age, and Physical Tools** over raw points per game.
+st.markdown(f"""
+Showing **{len(df_year)}** prospects from the {selected_year} class.
+This model identifies players with statistical profiles similar to historical All-Stars.
 """)
 
-# TOP SECTION: THE BOARD
+# TOP SECTION: THE BOARD (Top 3 Cards)
 if view_mode == "Simple (Scouting)":
-    st.subheader(f"🏆 Top Prospects: {selected_year}")
+    st.subheader(f"🏆 Top Prospects")
     
-    # Iterate through Top 5 for "Card" View
+    # Iterate through Top 3 for "Card" View
     cols = st.columns(3)
     for i, player in df_year.head(3).iterrows():
+        role_label = player['scout_role'] if player['scout_role'] else "Standard Prospect"
+        
         with cols[i]:
             st.markdown(f"""
             <div class="metric-card">
                 <h3>#{i+1} {player['player_name']}</h3>
-                <p><b>Role:</b> {player['scout_role']}</p>
-                <p class="big-stat">{player['star_prob']*100:.1f}% Star Prob</p>
-                <p class="sub-stat">
-                📏 {player['height_fmt']} | 🎓 Exp: {player['years_exp']:.1f}<br>
-                📈 Usage: {player['usg_max']:.1f}% | 🛡️ Stocks: {player['stock_rate']:.1f}
-                </p>
+                <span class="role-badge">{role_label}</span>
+                <p class="big-stat" style="margin-top: 10px;">{player['star_prob']*100:.1f}% <span style="font-size:14px; color:#555;">Star Prob</span></p>
+                <div class="sub-stat">
+                📏 <b>{player['height_fmt']}</b> | 🎓 Exp: {player['years_exp']:.0f}<br>
+                📈 Usage: {player['usg_max']:.1f}%<br>
+                🛡️ Stocks: {player['stock_rate']:.1f}
+                </div>
             </div>
             """, unsafe_allow_html=True)
     
@@ -125,22 +149,29 @@ if view_mode == "Simple (Scouting)":
 # ==============================================================================
 # 5. THE SCATTER PLOT (TRUST & CONTEXT)
 # ==============================================================================
-st.subheader("📊 The Landscape: Usage vs. Efficiency")
+st.subheader("📊 The Landscape: Usage vs. Probability")
 
-# Prepare Plot Data (Scouting Card Hover)
+# Prepare Plot Data
 df_plot = df_year.copy()
 df_plot["star_pct"] = (df_plot["star_prob"] * 100).round(1)
 df_plot["usg_fmt"] = df_plot["usg_max"].round(1)
 df_plot["stocks_fmt"] = df_plot["stock_rate"].round(1)
 df_plot["ts_fmt"] = (df_plot["ts_used"] * 100).round(1)
-# Create a dummy 'Confidence' metric if minutes aren't available
-df_plot["confidence"] = np.where(df_plot['years_exp'] >= 2.0, "High", "Med") 
+
+# Color Logic: Highlight searched player, otherwise by Role
+if search_term:
+    df_plot['color_group'] = np.where(df_plot['player_name'].str.contains(search_term, case=False), "Highlight", "Others")
+    color_map = {"Highlight": "#ff4b4b", "Others": "#dddddd"}
+else:
+    df_plot['color_group'] = df_plot['scout_role']
+    color_map = None # Auto assign
 
 fig = px.scatter(
     df_plot,
     x="usg_max",
     y="star_prob",
-    color="scout_role", 
+    color="color_group",
+    color_discrete_map=color_map,
     size="bpm_max", # Bubble size = Impact
     hover_name="player_name",
     title=f"{selected_year} Draft Landscape (Size = BPM Impact)",
@@ -152,8 +183,7 @@ fig = px.scatter(
         "usg_fmt",       # 2
         "height_fmt",    # 3
         "ts_fmt",        # 4
-        "stocks_fmt",    # 5
-        "confidence"     # 6
+        "stocks_fmt"     # 5
     ]
 )
 
@@ -164,7 +194,6 @@ fig.update_traces(
     "----------------<br>" +
     "📝 <b>Role:</b> %{customdata[0]}<br>" +
     "⭐ <b>Star Prob:</b> %{customdata[1]}%<br>" +
-    "🔒 <b>Confidence:</b> %{customdata[6]}<br>" +
     "<br>" +
     "📊 <b>Stats Profile:</b><br>" +
     "• Usage: %{customdata[2]}%<br>" +
@@ -190,16 +219,32 @@ st.plotly_chart(fig, use_container_width=True)
 # ==============================================================================
 st.subheader("📋 Detailed Board")
 
+# Search Filter in Table
+if search_term:
+    df_year = df_year[df_year['player_name'].str.contains(search_term, case=False)]
+
 if view_mode == "Simple (Scouting)":
     # Clean Columns for public view
-    show_cols = ['Rank', 'player_name', 'scout_role', 'star_prob', 'height_fmt', 'years_exp', 'usg_max']
+    show_cols = ['Rank', 'player_name', 'scout_role', 'star_prob', 'height_fmt', 'years_exp', 'usg_max', 'ts_used']
     
+    # Rename for display
+    display_df = df_year[show_cols].rename(columns={
+        'player_name': 'Player',
+        'scout_role': 'Archetype',
+        'star_prob': 'Star Probability',
+        'height_fmt': 'Height',
+        'years_exp': 'Exp',
+        'usg_max': 'Usage %',
+        'ts_used': 'TS %'
+    })
+
     st.dataframe(
-        df_year[show_cols].style.format({
-            "star_prob": "{:.1%}",
-            "usg_max": "{:.1f}%",
-            "years_exp": "{:.1f}"
-        }).background_gradient(subset=['star_prob'], cmap="Greens"),
+        display_df.style.format({
+            "Star Probability": "{:.1%}",
+            "Usage %": "{:.1f}%",
+            "Exp": "{:.0f}",
+            "TS %": "{:.1%}"
+        }).background_gradient(subset=['Star Probability'], cmap="Greens"),
         use_container_width=True,
         hide_index=True
     )
@@ -210,7 +255,8 @@ else:
         df_year.style.format({
             "star_prob": "{:.1%}",
             "bpm_max": "{:.1f}",
-            "ts_used": "{:.1%}"
+            "ts_used": "{:.1%}",
+            "stock_rate": "{:.1f}"
         }).background_gradient(subset=['star_prob'], cmap="RdYlGn"),
         use_container_width=True
     )
