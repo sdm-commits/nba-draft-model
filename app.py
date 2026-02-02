@@ -357,8 +357,10 @@ else:
     selected_year = 2025
     df_year = df.copy()
 
-# Archetype Filter
-all_archetypes = ['All'] + sorted(df_year['scout_role'].unique().tolist())
+# Archetype Filter - handle NaN values
+archetypes_list = df_year['scout_role'].dropna().unique().tolist()
+archetypes_list = [a for a in archetypes_list if isinstance(a, str)]  # Remove any non-strings
+all_archetypes = ['All'] + sorted(archetypes_list)
 selected_archetype = st.sidebar.selectbox("🎭 Archetype Filter", all_archetypes)
 
 if selected_archetype != 'All':
