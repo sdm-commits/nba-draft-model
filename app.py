@@ -665,8 +665,8 @@ elif view == "Results":
     st.markdown("<p class='section-header'>Draft Results & Rookie Performance</p>", unsafe_allow_html=True)
 
     # Only show for years with actual results
-    if selected_year > 2024:
-        st.info("Results will be available after the draft. Select 2024 or earlier to see actual outcomes.")
+    if selected_year > 2025:
+        st.info("Results will be available after the draft. Select 2025 or earlier to see actual outcomes.")
     else:
         st.markdown(f"**{selected_year} Draft Class** — Comparing predictions to actual results")
 
@@ -691,7 +691,12 @@ elif view == "Results":
                     pick = draft_match.iloc[0]
 
                     # Get current season stats
-                    season = "2024-25" if selected_year == 2024 else "2023-24"
+                    if selected_year == 2025:
+                        season = "2025-26"
+                    elif selected_year == 2024:
+                        season = "2024-25"
+                    else:
+                        season = "2023-24"
                     stats = get_player_season_stats(pick['PERSON_ID'], season)
 
                     results.append({
@@ -713,14 +718,24 @@ elif view == "Results":
                     pick_class = "lottery" if r['actual_pick'] <= 14 else ("first-round" if r['actual_pick'] <= 30 else "second-round")
                     img_url = get_player_image_url(r['player_id'])
 
-                    col1, col2 = st.columns([1, 3])
+                    stats_html = ""
+                    if r['ppg'] is not None:
+                        stats_html = f"""
+                        <div class="results-stats">
+                            <div><div class="results-stat-value">{r['ppg']:.1f}</div><div class="results-stat-label">PPG</div></div>
+                            <div><div class="results-stat-value">{r['rpg']:.1f}</div><div class="results-stat-label">RPG</div></div>
+                            <div><div class="results-stat-value">{r['apg']:.1f}</div><div class="results-stat-label">APG</div></div>
+                            <div><div class="results-stat-value">{r['gp']}</div><div class="results-stat-label">GP</div></div>
+                        </div>
+                        """
+                    else:
+                        stats_html = "<div style='color:#86868b; font-size:0.8rem; margin-top:8px;'>No stats available yet</div>"
 
-                    with col1:
-                        st.image(img_url, width=80)
-
-                    with col2:
-                        st.markdown(f"""
-                        <div class="results-card">
+                    st.markdown(f"""
+                    <div class="results-card" style="display:flex; gap:16px; align-items:flex-start;">
+                        <img src="{img_url}" style="width:70px; height:52px; object-fit:cover; border-radius:6px; flex-shrink:0;"
+                             onerror="this.style.display='none'">
+                        <div style="flex:1; min-width:0;">
                             <div class="results-header">
                                 <div>
                                     <span class="results-name">{r['name']}</span>
@@ -728,7 +743,7 @@ elif view == "Results":
                                 </div>
                                 <span class="draft-pick {pick_class}">Pick #{r['actual_pick']}</span>
                             </div>
-                            <div style="display:flex; gap:24px; align-items:center; margin-bottom:8px;">
+                            <div style="display:flex; gap:24px; align-items:center; margin:8px 0;">
                                 <div>
                                     <span style="color:#86868b; font-size:0.75rem;">Model Rank</span>
                                     <span style="font-weight:600; margin-left:4px;">#{r['pred_rank']}</span>
@@ -742,23 +757,10 @@ elif view == "Results":
                                     <span style="font-weight:600; margin-left:4px;">{r['team']}</span>
                                 </div>
                             </div>
-                        """, unsafe_allow_html=True)
-
-                        if r['ppg'] is not None:
-                            st.markdown(f"""
-                            <div class="results-stats">
-                                <div><div class="results-stat-value">{r['ppg']:.1f}</div><div class="results-stat-label">PPG</div></div>
-                                <div><div class="results-stat-value">{r['rpg']:.1f}</div><div class="results-stat-label">RPG</div></div>
-                                <div><div class="results-stat-value">{r['apg']:.1f}</div><div class="results-stat-label">APG</div></div>
-                                <div><div class="results-stat-value">{r['gp']}</div><div class="results-stat-label">GP</div></div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown("<div style='color:#86868b; font-size:0.8rem;'>No stats available yet</div>", unsafe_allow_html=True)
-
-                        st.markdown("</div>", unsafe_allow_html=True)
-
-                    st.markdown("")
+                            {stats_html}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
             else:
                 st.info("No matching players found in draft data.")
 
