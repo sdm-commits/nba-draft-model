@@ -718,18 +718,10 @@ elif view == "Results":
                     pick_class = "lottery" if r['actual_pick'] <= 14 else ("first-round" if r['actual_pick'] <= 30 else "second-round")
                     img_url = get_player_image_url(r['player_id'])
 
-                    stats_html = ""
                     if r['ppg'] is not None:
-                        stats_html = f"""
-                        <div class="results-stats">
-                            <div><div class="results-stat-value">{r['ppg']:.1f}</div><div class="results-stat-label">PPG</div></div>
-                            <div><div class="results-stat-value">{r['rpg']:.1f}</div><div class="results-stat-label">RPG</div></div>
-                            <div><div class="results-stat-value">{r['apg']:.1f}</div><div class="results-stat-label">APG</div></div>
-                            <div><div class="results-stat-value">{r['gp']}</div><div class="results-stat-label">GP</div></div>
-                        </div>
-                        """
+                        stats_html = f'<div class="results-stats"><div><div class="results-stat-value">{r["ppg"]:.1f}</div><div class="results-stat-label">PPG</div></div><div><div class="results-stat-value">{r["rpg"]:.1f}</div><div class="results-stat-label">RPG</div></div><div><div class="results-stat-value">{r["apg"]:.1f}</div><div class="results-stat-label">APG</div></div><div><div class="results-stat-value">{r["gp"]}</div><div class="results-stat-label">GP</div></div></div>'
                     else:
-                        stats_html = "<div style='color:#86868b; font-size:0.8rem; margin-top:8px;'>No stats available yet</div>"
+                        stats_html = '<div style="color:#86868b; font-size:0.8rem; margin-top:8px;">No stats available yet</div>'
 
                     st.markdown(f"""
                     <div class="results-card" style="display:flex; gap:16px; align-items:flex-start;">
