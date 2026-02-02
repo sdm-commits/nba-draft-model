@@ -43,6 +43,7 @@ EXCLUDED_PLAYERS = {
         "Darrion Williams",
         "Trey Kaufman-Renn",
         "Xaivian Lee",
+        "Dailyn Swain"
     ],
     2026: [
         # Add players still in school for 2026 here
