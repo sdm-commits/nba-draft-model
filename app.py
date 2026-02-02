@@ -14,7 +14,8 @@ st.set_page_config(page_title="NBA Draft Oracle", layout="wide", page_icon="🏀
 # EXCLUDED PLAYERS CONFIG
 # ==============================================================================
 EXCLUDED_PLAYERS = {
-    "Nate Bittle",
+    2025: [
+        "Nate Bittle",
         "Yaxel Lendeborg", 
         "Nolan Winter",
         "Joshua Jefferson",
@@ -41,9 +42,7 @@ EXCLUDED_PLAYERS = {
         "Xaivian Lee",
         "Dailyn Swain"
     ],
-    2026: [
-        # Add players still in school for 2026 here
-    ],
+    2026: [],
 }
 
 def get_excluded_players(year):
