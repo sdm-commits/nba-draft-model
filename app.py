@@ -14,10 +14,36 @@ st.set_page_config(page_title="NBA Draft Oracle", layout="wide", page_icon="🏀
 # EXCLUDED PLAYERS CONFIG
 # ==============================================================================
 EXCLUDED_PLAYERS = {
-    2025: [
-        # Add players still in school for 2025 here
+    "Nate Bittle",
+        "Yaxel Lendeborg", 
+        "Nolan Winter",
+        "Joshua Jefferson",
+        "Thomas Haugh",
+        "Alvaro Folgueiras",
+        "Tomislav Ivisic",
+        "JT Toppin",
+        "Bennett Stirtz", 
+        "Zuby Ejiofor",
+        "Mouhamed Dioubate", 
+        "Joseph Tugler", 
+        "Jayden Quaintance", 
+        "Keanu Dawes",
+        "Malik Reneau",
+        "Henri Veesaar",
+        "Alex Condon",
+        "Anthony Robinson II",
+        "Miles Byrd",
+        "Amael L'Etang",
+        "Mister Dean",
+        "Eric Dailey Jr.", 
+        "Darrion Williams",
+        "Trey Kaufman-Renn",
+        "Xaivian Lee",
+        "Dailyn Swain"
     ],
-    2026: [],
+    2026: [
+        # Add players still in school for 2026 here
+    ],
 }
 
 def get_excluded_players(year):
