@@ -13,8 +13,16 @@ st.set_page_config(page_title="NBA Draft Oracle", layout="wide", page_icon="🏀
 # Clean, Apple-inspired CSS
 st.markdown("""
 <style>
-    /* Global */
-    .block-container { padding-top: 2rem; }
+    /* Global - fix top cutoff */
+    .block-container {
+        padding-top: 3rem;
+        padding-bottom: 2rem;
+    }
+
+    /* Hide default header spacing */
+    header[data-testid="stHeader"] {
+        background: transparent;
+    }
 
     /* Typography */
     .main-title {
@@ -83,7 +91,7 @@ st.markdown("""
     }
     .stat-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 16px;
         margin-top: 20px;
         padding-top: 20px;
@@ -339,6 +347,35 @@ else:
     selected_year = 2025
     df_year = df.copy()
 
+# Exclusion list - for filtering out players still in school
+st.sidebar.markdown("---")
+st.sidebar.markdown("##### Exclude Players")
+st.sidebar.caption("Hide players who haven't declared")
+
+# Get all player names for this year
+all_players = df_year['player_name'].tolist()
+
+# Check if we have a session state for excluded players
+if 'excluded_players' not in st.session_state:
+    st.session_state.excluded_players = []
+
+# Multi-select for excluding players
+excluded = st.sidebar.multiselect(
+    "Select to exclude",
+    options=all_players,
+    default=st.session_state.excluded_players,
+    key="exclude_select"
+)
+
+# Update session state
+st.session_state.excluded_players = excluded
+
+# Apply exclusion filter
+if excluded:
+    df_year = df_year[~df_year['player_name'].isin(excluded)]
+
+st.sidebar.markdown("---")
+
 # Archetype
 archetypes = ['All'] + sorted([a for a in df_year['scout_role'].dropna().unique() if isinstance(a, str)])
 selected_arch = st.sidebar.selectbox("Archetype", archetypes)
@@ -400,10 +437,6 @@ if view == "Overview" and len(df_year) > 0:
                 <div class="stat-item">
                     <div class="stat-value">{top['height_fmt']}</div>
                     <div class="stat-name">Height</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">{top['adj_proj_vorp']:.1f}</div>
-                    <div class="stat-name">Proj VORP</div>
                 </div>
             </div>
             <a href="{highlight_url}" target="_blank" class="highlight-btn">Watch Highlights</a>
@@ -518,6 +551,7 @@ elif view == "Grid" and len(df_year) > 0:
 elif view == "Table" and len(df_year) > 0:
     st.markdown("<p class='section-header'>Full Draft Board</p>", unsafe_allow_html=True)
 
+    # Removed adj_proj_vorp from display
     display_cols = ['rank', 'player_name', 'scout_role', 'tier', 'star_prob',
                     'bpm_max', 'usg_max', 'height_fmt', 'years_exp']
     display_cols = [c for c in display_cols if c in df_year.columns]
