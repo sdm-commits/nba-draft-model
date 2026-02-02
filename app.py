@@ -4,264 +4,269 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import os
-import requests
 
 # ==============================================================================
 # 1. SETUP & CONFIG
 # ==============================================================================
-st.set_page_config(page_title="2025 NBA Draft Oracle", layout="wide", page_icon="🏀")
+st.set_page_config(page_title="NBA Draft Oracle", layout="wide", page_icon="🏀")
 
-# Custom CSS
+# Clean, Apple-inspired CSS
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 800;
-        margin-bottom: 0;
+    /* Global */
+    .block-container { padding-top: 2rem; }
+
+    /* Typography */
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 600;
+        color: #1d1d1f;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.5px;
     }
-    .sub-header {
+    .subtitle {
         font-size: 1rem;
-        color: #666;
-        margin-top: 0;
+        color: #86868b;
+        font-weight: 400;
+        margin-bottom: 1.5rem;
     }
-    .metric-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        padding: 20px;
-        border-radius: 15px;
-        border-left: 5px solid #ff6b6b;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        color: white;
-        margin-bottom: 10px;
+
+    /* Player Card */
+    .player-card {
+        background: #ffffff;
+        border: 1px solid #e5e5e7;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 16px;
     }
-    .metric-card h3 {
-        margin: 0;
-        color: #fff;
-        font-size: 1.3rem;
+    .player-card:hover {
+        border-color: #0071e3;
     }
-    .metric-card .rank-badge {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
-        color: white;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: bold;
-        display: inline-block;
+    .player-rank {
+        font-size: 0.75rem;
+        color: #86868b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    .player-name {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #1d1d1f;
         margin-bottom: 8px;
     }
-    .player-image {
-        width: 120px;
-        height: 90px;
-        object-fit: cover;
-        border-radius: 10px;
-        margin-bottom: 10px;
+    .player-archetype {
+        display: inline-block;
+        background: #f5f5f7;
+        color: #1d1d1f;
+        padding: 4px 12px;
+        border-radius: 100px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-bottom: 16px;
     }
-    .big-stat {
-        font-size: 2.8rem;
-        font-weight: bold;
-        color: #4ecdc4;
-        line-height: 1.1;
+    .stat-main {
+        font-size: 3rem;
+        font-weight: 600;
+        color: #1d1d1f;
+        line-height: 1;
     }
     .stat-label {
-        font-size: 0.9rem;
-        color: #aaa;
-        margin-top: -5px;
-    }
-    .delta-positive {
-        color: #4ecdc4;
         font-size: 0.85rem;
-        background: rgba(78, 205, 196, 0.2);
-        padding: 2px 8px;
-        border-radius: 10px;
+        color: #86868b;
+        margin-top: 4px;
     }
-    .archetype-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        display: inline-block;
-        margin: 8px 0;
+    .stat-delta {
+        font-size: 0.8rem;
+        color: #34c759;
+        font-weight: 500;
     }
-    .stat-row {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid rgba(255,255,255,0.1);
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e5e7;
     }
     .stat-item {
         text-align: center;
     }
     .stat-value {
         font-size: 1.1rem;
-        font-weight: bold;
-        color: #fff;
+        font-weight: 600;
+        color: #1d1d1f;
     }
     .stat-name {
         font-size: 0.7rem;
-        color: #888;
+        color: #86868b;
         text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
-    .highlight-link {
-        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-        color: white !important;
-        padding: 5px 15px;
-        border-radius: 20px;
+
+    /* Highlight Button */
+    .highlight-btn {
+        display: inline-block;
+        background: #1d1d1f;
+        color: #ffffff !important;
+        padding: 8px 16px;
+        border-radius: 100px;
         text-decoration: none;
         font-size: 0.8rem;
-        font-weight: bold;
-        display: inline-block;
-        margin-top: 10px;
+        font-weight: 500;
+        margin-top: 16px;
+        transition: background 0.2s;
     }
-    .highlight-link:hover {
-        opacity: 0.8;
+    .highlight-btn:hover {
+        background: #424245;
     }
-    .player-grid-card {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 15px;
+
+    /* Grid Card */
+    .grid-card {
+        background: #ffffff;
+        border: 1px solid #e5e5e7;
+        border-radius: 12px;
+        padding: 16px;
         text-align: center;
-        border: 1px solid #e0e0e0;
-        transition: transform 0.2s;
+        height: 100%;
     }
-    .player-grid-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    .player-grid-image {
-        width: 100px;
-        height: 75px;
+    .grid-card img {
+        width: 80px;
+        height: 60px;
         object-fit: cover;
         border-radius: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
+    }
+    .grid-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1d1d1f;
+        margin-bottom: 4px;
+    }
+    .grid-archetype {
+        font-size: 0.7rem;
+        color: #86868b;
+        margin-bottom: 8px;
+    }
+    .grid-prob {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1d1d1f;
+    }
+    .grid-prob-label {
+        font-size: 0.7rem;
+        color: #86868b;
+    }
+
+    /* Tier Badge */
+    .tier-mvp { color: #bf8700; }
+    .tier-allstar { color: #5856d6; }
+    .tier-starter { color: #34c759; }
+    .tier-role { color: #86868b; }
+
+    /* Section Headers */
+    .section-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1d1d1f;
+        margin: 2rem 0 1rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Archetype Mapping
 ARCH_MAP = {
-    "Generational": "Generational Talent",
+    "Generational": "Generational",
     "Elite Producer": "Elite Producer",
     "Star Potential": "Star Potential",
-    "Heliocentric Engine": "Heliocentric Engine",
-    "Monstar": "Two-Way Monster",
+    "Heliocentric Engine": "Primary Creator",
+    "Monstar": "Two-Way Star",
     "Elite Shooter": "Elite Shooter",
-    "Elite FR Shooter": "Elite FR Shooter",
+    "Elite FR Shooter": "Elite Shooter",
     "Two-Way Wing": "Two-Way Wing",
-    "Playmaker": "Floor General",
+    "Playmaker": "Playmaker",
     "High Upside": "High Upside",
     "Consistent Producer": "Consistent Producer",
-    "Improver": "Late Bloomer",
+    "Improver": "Improver",
     "Rim Runner": "Rim Runner",
     "Rim Protector": "Rim Protector",
-    "Raw Big": "Raw Big (Risk)",
-    "Limited Big": "Limited Big (Risk)",
+    "Raw Big": "Raw Big",
+    "Limited Big": "Limited Big",
     "Freshman Phenom": "Freshman Phenom",
-    "": "Role Player"
+    "": "Prospect"
 }
 
+# Clean color palette
 ARCH_COLORS = {
-    "Generational Talent": "#FFD700",
-    "Elite Producer": "#FF6B6B",
-    "Star Potential": "#9B59B6",
-    "Heliocentric Engine": "#F39C12",
-    "Two-Way Monster": "#8E44AD",
-    "Elite Shooter": "#3498DB",
-    "Elite FR Shooter": "#2980B9",
-    "Two-Way Wing": "#F1C40F",
-    "Floor General": "#1ABC9C",
-    "High Upside": "#E74C3C",
-    "Consistent Producer": "#27AE60",
-    "Late Bloomer": "#16A085",
-    "Rim Runner": "#E67E22",
-    "Rim Protector": "#95A5A6",
-    "Raw Big (Risk)": "#7F8C8D",
-    "Limited Big (Risk)": "#566573",
-    "Freshman Phenom": "#E91E63",
-    "Role Player": "#BDC3C7"
+    "Generational": "#bf8700",
+    "Elite Producer": "#ff3b30",
+    "Star Potential": "#5856d6",
+    "Primary Creator": "#ff9500",
+    "Two-Way Star": "#af52de",
+    "Elite Shooter": "#007aff",
+    "Two-Way Wing": "#ffcc00",
+    "Playmaker": "#30d158",
+    "High Upside": "#ff2d55",
+    "Consistent Producer": "#34c759",
+    "Improver": "#00c7be",
+    "Rim Runner": "#ff9f0a",
+    "Rim Protector": "#8e8e93",
+    "Raw Big": "#636366",
+    "Limited Big": "#48484a",
+    "Freshman Phenom": "#ff375f",
+    "Prospect": "#aeaeb2"
 }
 
 # ==============================================================================
-# 2. NBA API FUNCTIONS
+# 2. NBA PLAYER DATA (using nba_api)
 # ==============================================================================
-@st.cache_data(ttl=86400)  # Cache for 24 hours
+@st.cache_data(ttl=86400)
 def get_nba_players():
-    """Fetch all NBA players from the NBA API"""
+    """Fetch NBA players using nba_api package"""
     try:
-        url = "https://stats.nba.com/stats/playerindex?Historical=0&LeagueID=00&Season=2024-25"
-        headers = {
-            'User-Agent': 'Mozilla/5.0',
-            'Referer': 'https://www.nba.com/',
-            'Accept': 'application/json'
-        }
-        response = requests.get(url, headers=headers, timeout=10)
-        data = response.json()
-
-        # Parse the response
-        headers_list = data['resultSets'][0]['headers']
-        rows = data['resultSets'][0]['rowSet']
-
-        df = pd.DataFrame(rows, columns=headers_list)
-
-        # Create normalized name for matching
-        df['norm_name'] = df['PLAYER_LAST_NAME'].str.lower() + ' ' + df['PLAYER_FIRST_NAME'].str.lower()
-        df['norm_name_alt'] = df['PLAYER_FIRST_NAME'].str.lower() + ' ' + df['PLAYER_LAST_NAME'].str.lower()
-
+        from nba_api.stats.static import players
+        all_players = players.get_players()
+        df = pd.DataFrame(all_players)
+        df['norm_name'] = df['full_name'].str.lower().str.strip()
         return df
+    except ImportError:
+        st.sidebar.warning("Install nba_api: pip install nba_api")
+        return pd.DataFrame()
     except Exception as e:
-        st.warning(f"Could not fetch NBA player data: {e}")
         return pd.DataFrame()
 
 def get_player_image_url(player_id):
     """Get NBA player headshot URL"""
-    if pd.isna(player_id) or player_id == 0:
+    if pd.isna(player_id) or player_id == 0 or player_id is None:
         return "https://cdn.nba.com/headshots/nba/latest/1040x760/fallback.png"
     return f"https://cdn.nba.com/headshots/nba/latest/1040x760/{int(player_id)}.png"
 
 def get_highlight_url(player_name):
     """Generate YouTube highlight search URL"""
-    search_query = f"{player_name} NBA highlights 2024"
-    return f"https://www.youtube.com/results?search_query={search_query.replace(' ', '+')}"
+    query = f"{player_name} highlights 2024"
+    return f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
 
-def get_nba_profile_url(player_id, player_name):
-    """Get NBA.com player profile URL"""
-    if pd.isna(player_id) or player_id == 0:
-        # Fallback to search
-        return f"https://www.nba.com/search?filters=&q={player_name.replace(' ', '%20')}"
+def match_to_nba_player(college_name, nba_df):
+    """Match college player to NBA player ID"""
+    if nba_df.empty:
+        return None
 
-    # Format name for URL (first-last)
-    name_parts = player_name.lower().split()
-    if len(name_parts) >= 2:
-        url_name = f"{name_parts[0]}-{name_parts[-1]}"
-    else:
-        url_name = player_name.lower().replace(' ', '-')
-
-    return f"https://www.nba.com/player/{int(player_id)}/{url_name}"
-
-def match_to_nba_player(college_name, nba_players_df):
-    """Match a college player name to NBA player ID"""
-    if nba_players_df.empty:
-        return None, None
-
-    # Normalize the college name
     norm_name = college_name.lower().strip()
+    match = nba_df[nba_df['norm_name'] == norm_name]
 
-    # Try exact match
-    match = nba_players_df[nba_players_df['norm_name_alt'] == norm_name]
     if len(match) > 0:
-        return match.iloc[0]['PERSON_ID'], match.iloc[0]['PLAYER_FIRST_NAME'] + ' ' + match.iloc[0]['PLAYER_LAST_NAME']
+        return match.iloc[0]['id']
 
-    # Try partial match (last name)
+    # Try last name match
     last_name = norm_name.split()[-1] if ' ' in norm_name else norm_name
-    match = nba_players_df[nba_players_df['PLAYER_LAST_NAME'].str.lower() == last_name]
+    match = nba_df[nba_df['last_name'].str.lower() == last_name]
     if len(match) == 1:
-        return match.iloc[0]['PERSON_ID'], match.iloc[0]['PLAYER_FIRST_NAME'] + ' ' + match.iloc[0]['PLAYER_LAST_NAME']
+        return match.iloc[0]['id']
 
-    return None, None
+    return None
 
 # ==============================================================================
-# 3. LOAD & PREP DATA
+# 3. LOAD DATA
 # ==============================================================================
 @st.cache_data
 def load_data():
@@ -280,418 +285,297 @@ def load_data():
     if df is None:
         return None
 
-    # Filtering
+    # Filter invalid rows
     if 'usg_max' in df.columns and 'star_prob' in df.columns:
-        mask_exclude = (df['usg_max'] <= 0.0) & (df['star_prob'] < 0.001)
-        df = df[~mask_exclude].copy()
+        mask = (df['usg_max'] > 0) | (df['star_prob'] >= 0.001)
+        df = df[mask].copy()
 
-    # Map Archetypes
+    # Map archetypes
     if 'archetype_note' in df.columns:
-        df['scout_role'] = df['archetype_note'].map(ARCH_MAP).fillna(df['archetype_note'])
-        df['scout_role'] = df['scout_role'].replace('', 'Role Player')
+        df['scout_role'] = df['archetype_note'].map(ARCH_MAP).fillna('Prospect')
     else:
-        df['scout_role'] = 'Role Player'
+        df['scout_role'] = 'Prospect'
 
-    # Format Height
+    # Format height
     def fmt_height(h):
-        if pd.isna(h) or h == 0: return "N/A"
-        ft = int(h // 12)
-        inch = int(h % 12)
+        if pd.isna(h) or h == 0: return "—"
+        ft, inch = int(h // 12), int(h % 12)
         return f"{ft}'{inch}\""
 
-    if 'height_in' in df.columns:
-        df['height_fmt'] = df['height_in'].apply(fmt_height)
-    else:
-        df['height_fmt'] = "N/A"
+    df['height_fmt'] = df['height_in'].apply(fmt_height) if 'height_in' in df.columns else "—"
 
-    # Safety Fill
-    default_cols = {
-        'ts_per': 55.0, 'stock_rate': 0.0, 'years_exp': 1.0,
-        'bpm_max': 0.0, 'usg_max': 20.0, 'star_prob': 0.1,
-        'three_pct': 0.0, 'ast_per': 0.0, 'proj_vorp': 0.0,
-        'adj_proj_vorp': 0.0, 'ev_vorp': 0.0
-    }
-    for col, default in default_cols.items():
+    # Fill defaults
+    defaults = {'bpm_max': 0, 'usg_max': 20, 'star_prob': 0.1, 'stock_rate': 0,
+                'years_exp': 1, 'adj_proj_vorp': 0, 'three_pct': 0}
+    for col, val in defaults.items():
         if col not in df.columns:
-            df[col] = default
+            df[col] = val
 
-    # Tier Classification
-    def get_tier(prob):
-        if prob >= 0.60:
-            return "MVP Caliber"
-        elif prob >= 0.45:
-            return "All-Star Potential"
-        elif prob >= 0.25:
-            return "Quality Starter"
-        else:
-            return "Role Player"
-
-    df['tier'] = df['star_prob'].apply(get_tier)
-    df['confidence'] = np.where(df['years_exp'] >= 3, "High",
-                        np.where(df['years_exp'] >= 2, "Medium", "Projection"))
+    # Tier classification
+    df['tier'] = pd.cut(df['star_prob'],
+                        bins=[-1, 0.25, 0.45, 0.60, 1.01],
+                        labels=['Role Player', 'Starter', 'All-Star', 'MVP'])
 
     return df
 
-# Load data
 df = load_data()
 if df is None:
-    st.error("⚠️ Data file not found.")
+    st.error("Data file not found. Please add your predictions CSV.")
     st.stop()
 
-# Load NBA players for matching
 nba_players = get_nba_players()
 
 # ==============================================================================
-# 4. SIDEBAR & FILTERS
+# 4. SIDEBAR
 # ==============================================================================
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/889/889442.png", width=80)
-st.sidebar.title("🏀 Draft Oracle")
-st.sidebar.markdown("---")
+st.sidebar.markdown("### Filters")
 
-# Year Filter
+# Year
 if 'year' in df.columns:
-    all_years = sorted(df['year'].unique(), reverse=True)
-    selected_year = st.sidebar.selectbox("📅 Draft Class", all_years)
+    years = sorted(df['year'].unique(), reverse=True)
+    selected_year = st.sidebar.selectbox("Draft Class", years)
     df_year = df[df['year'] == selected_year].copy()
 else:
     selected_year = 2025
     df_year = df.copy()
 
-# Archetype Filter - handle NaN values
-archetypes_list = df_year['scout_role'].dropna().unique().tolist()
-archetypes_list = [a for a in archetypes_list if isinstance(a, str)]  # Remove any non-strings
-all_archetypes = ['All'] + sorted(archetypes_list)
-selected_archetype = st.sidebar.selectbox("🎭 Archetype Filter", all_archetypes)
-
-if selected_archetype != 'All':
-    df_year = df_year[df_year['scout_role'] == selected_archetype]
-
-# Tier Filter
-tier_filter = st.sidebar.multiselect(
-    "🏆 Tier Filter",
-    ["MVP Caliber", "All-Star Potential", "Quality Starter", "Role Player"],
-    default=["MVP Caliber", "All-Star Potential", "Quality Starter"]
-)
-df_year = df_year[df_year['tier'].isin(tier_filter)]
+# Archetype
+archetypes = ['All'] + sorted([a for a in df_year['scout_role'].dropna().unique() if isinstance(a, str)])
+selected_arch = st.sidebar.selectbox("Archetype", archetypes)
+if selected_arch != 'All':
+    df_year = df_year[df_year['scout_role'] == selected_arch]
 
 # Search
-search_term = st.sidebar.text_input("🔍 Search Player", "")
+search = st.sidebar.text_input("Search", placeholder="Player name...")
+if search:
+    df_year = df_year[df_year['player_name'].str.contains(search, case=False, na=False)]
 
-# View Mode
-view_mode = st.sidebar.radio("📊 View Mode", ["Card View", "Chart View", "Grid View", "Data Table"])
-
-st.sidebar.markdown("---")
-st.sidebar.caption("Model trained on 2010-2024 NCAA data")
+# View
+view = st.sidebar.radio("View", ["Overview", "Chart", "Grid", "Table"])
 
 # Sort and rank
 df_year = df_year.sort_values("star_prob", ascending=False).reset_index(drop=True)
-df_year['Rank'] = df_year.index + 1
+df_year['rank'] = range(1, len(df_year) + 1)
 
 # ==============================================================================
-# 5. MAIN HEADER
+# 5. HEADER
 # ==============================================================================
-st.markdown(f"<h1 class='main-header'>🏀 {selected_year} NBA Draft Oracle</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-header'>Predicting future NBA stars using <b>XGBoost</b>. Click a player's name to see their <b>Highlights</b>.</p>", unsafe_allow_html=True)
-st.markdown("---")
+st.markdown(f"<p class='main-title'>{selected_year} NBA Draft Oracle</p>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>Projecting future NBA stars from college performance data</p>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 6. CARD VIEW
+# 6. OVERVIEW
 # ==============================================================================
-if view_mode == "Card View":
-    if len(df_year) > 0:
-        # Filter by search
-        if search_term:
-            df_display = df_year[df_year['player_name'].str.contains(search_term, case=False, na=False)]
-        else:
-            df_display = df_year
+if view == "Overview" and len(df_year) > 0:
+    top = df_year.iloc[0]
+    nba_id = match_to_nba_player(top['player_name'], nba_players)
+    img_url = get_player_image_url(nba_id)
+    highlight_url = get_highlight_url(top['player_name'])
 
-        # Top prospect featured card
-        if len(df_display) > 0:
-            top_player = df_display.iloc[0]
+    avg_prob = df['star_prob'].mean()
+    delta = ((top['star_prob'] - avg_prob) / avg_prob) * 100
 
-            # Try to match to NBA player
-            nba_id, nba_name = match_to_nba_player(top_player['player_name'], nba_players)
-            player_img = get_player_image_url(nba_id)
-            highlight_url = get_highlight_url(top_player['player_name'])
+    col1, col2 = st.columns([1, 2])
 
-            col1, col2 = st.columns([1, 2])
-
-            with col1:
-                avg_prob = df['star_prob'].mean()
-                delta = ((top_player['star_prob'] - avg_prob) / avg_prob) * 100
-
-                st.markdown(f"""
-                <div class="metric-card">
-                    <span class="rank-badge">🥇 Top Prospect</span>
-                    <img src="{player_img}" class="player-image" onerror="this.src='https://cdn.nba.com/headshots/nba/latest/1040x760/fallback.png'">
-                    <h3>{top_player['player_name']}</h3>
-                    <div class="archetype-badge">{top_player['scout_role']}</div>
-                    <div class="big-stat">{top_player['star_prob']*100:.1f}%</div>
-                    <div class="stat-label">⭐ Star Probability</div>
-                    <span class="delta-positive">↑ {abs(delta):.1f}% vs avg</span>
-
-                    <div class="stat-row">
-                        <div class="stat-item">
-                            <div class="stat-value">{top_player['bpm_max']:.1f}</div>
-                            <div class="stat-name">BPM</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">{top_player['usg_max']:.1f}%</div>
-                            <div class="stat-name">Usage</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">{top_player['height_fmt']}</div>
-                            <div class="stat-name">Height</div>
-                        </div>
-                    </div>
-                    <a href="{highlight_url}" target="_blank" class="highlight-link">▶️ Watch Highlights</a>
+    with col1:
+        st.markdown(f"""
+        <div class="player-card">
+            <div class="player-rank">Top Prospect</div>
+            <img src="{img_url}" style="width:100%; max-width:200px; border-radius:8px; margin-bottom:16px;"
+                 onerror="this.style.display='none'">
+            <div class="player-name">{top['player_name']}</div>
+            <span class="player-archetype">{top['scout_role']}</span>
+            <div class="stat-main">{top['star_prob']*100:.1f}%</div>
+            <div class="stat-label">Star Probability</div>
+            <div class="stat-delta">+{delta:.0f}% vs class average</div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-value">{top['bpm_max']:.1f}</div>
+                    <div class="stat-name">BPM</div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div class="stat-item">
+                    <div class="stat-value">{top['usg_max']:.0f}%</div>
+                    <div class="stat-name">Usage</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{top['height_fmt']}</div>
+                    <div class="stat-name">Height</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{top['adj_proj_vorp']:.1f}</div>
+                    <div class="stat-name">Proj VORP</div>
+                </div>
+            </div>
+            <a href="{highlight_url}" target="_blank" class="highlight-btn">Watch Highlights</a>
+        </div>
+        """, unsafe_allow_html=True)
 
-            with col2:
-                st.markdown("##### 🏆 Top 10 Prospects")
+    with col2:
+        st.markdown("<p class='section-header'>Top 10</p>", unsafe_allow_html=True)
 
-                # Create rows of 5
-                for row_start in range(0, min(10, len(df_display)), 5):
-                    cols = st.columns(5)
-                    for i, col in enumerate(cols):
-                        idx = row_start + i
-                        if idx < len(df_display):
-                            player = df_display.iloc[idx]
-                            nba_id_small, _ = match_to_nba_player(player['player_name'], nba_players)
-                            img_url = get_player_image_url(nba_id_small)
+        for i, (_, p) in enumerate(df_year.head(10).iterrows()):
+            tier_class = {
+                'MVP': 'tier-mvp', 'All-Star': 'tier-allstar',
+                'Starter': 'tier-starter', 'Role Player': 'tier-role'
+            }.get(p['tier'], 'tier-role')
 
-                            with col:
-                                tier_emoji = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"][idx]
-                                st.image(img_url, width=80)
-                                st.caption(f"{tier_emoji} **{player['player_name'][:15]}**")
-                                st.caption(f"{player['star_prob']*100:.0f}% | {player['bpm_max']:.1f} BPM")
+            cols = st.columns([0.5, 3, 2, 1.5, 1.5])
+            cols[0].markdown(f"**{i+1}**")
+            cols[1].markdown(f"**{p['player_name']}**")
+            cols[2].markdown(f"<span class='player-archetype' style='font-size:0.7rem;'>{p['scout_role']}</span>", unsafe_allow_html=True)
+            cols[3].markdown(f"**{p['star_prob']*100:.0f}%**")
+            cols[4].markdown(f"{p['bpm_max']:.1f} BPM")
 
 # ==============================================================================
 # 7. CHART VIEW
 # ==============================================================================
-elif view_mode == "Chart View":
-    st.subheader(f"{selected_year} Usage vs. Potential")
+elif view == "Chart" and len(df_year) > 0:
+    st.markdown("<p class='section-header'>Usage vs Star Probability</p>", unsafe_allow_html=True)
 
-    if len(df_year) > 0:
-        df_plot = df_year.copy()
-        df_plot["star_pct"] = (df_plot["star_prob"] * 100).round(1)
+    df_plot = df_year.copy()
+    min_bpm = df_plot['bpm_max'].min()
+    df_plot['size'] = (df_plot['bpm_max'] - min_bpm + 3).clip(lower=3)
 
-        min_bpm = df_plot['bpm_max'].min()
-        if pd.isna(min_bpm): min_bpm = 0
-        df_plot['plot_size'] = (df_plot['bpm_max'] - min_bpm + 5).clip(lower=5)
+    fig = px.scatter(
+        df_plot, x="usg_max", y="star_prob",
+        color="scout_role", color_discrete_map=ARCH_COLORS,
+        size="size", hover_name="player_name",
+        labels={"usg_max": "Usage Rate", "star_prob": "Star Probability"},
+        height=550
+    )
 
-        if search_term:
-            df_plot['color_group'] = np.where(
-                df_plot['player_name'].str.contains(search_term, case=False, na=False),
-                "🔍 Highlighted", df_plot['scout_role']
-            )
-        else:
-            df_plot['color_group'] = df_plot['scout_role']
+    # Tier lines
+    fig.add_hline(y=0.60, line_dash="dot", line_color="#bf8700", line_width=1,
+                  annotation_text="MVP", annotation_position="right",
+                  annotation_font_size=10, annotation_font_color="#bf8700")
+    fig.add_hline(y=0.45, line_dash="dot", line_color="#5856d6", line_width=1,
+                  annotation_text="All-Star", annotation_position="right",
+                  annotation_font_size=10, annotation_font_color="#5856d6")
 
-        fig = px.scatter(
-            df_plot, x="usg_max", y="star_prob", color="color_group",
-            color_discrete_map=ARCH_COLORS, size="plot_size",
-            hover_name="player_name",
-            labels={"usg_max": "Usage Rate (%)", "star_prob": "Star Probability"},
-            height=600,
-            custom_data=['scout_role', 'star_pct', 'bpm_max', 'height_fmt', 'adj_proj_vorp', 'tier']
+    # Top labels
+    for _, p in df_plot.nlargest(3, 'star_prob').iterrows():
+        fig.add_annotation(
+            x=p['usg_max'], y=p['star_prob'] + 0.03,
+            text=p['player_name'].split()[-1],
+            showarrow=False, font=dict(size=10, color="#1d1d1f")
         )
 
-        fig.update_traces(
-            hovertemplate=
-            "<b>%{hovertext}</b><br><br>" +
-            "🎭 Archetype: %{customdata[0]}<br>" +
-            "⭐ Star Prob: %{customdata[1]}%<br>" +
-            "🏆 Tier: %{customdata[5]}<br>" +
-            "📊 Usage: %{x:.1f}%<br>" +
-            "🔥 BPM: %{customdata[2]:.1f}<br>" +
-            "<extra></extra>"
-        )
+    fig.update_layout(
+        plot_bgcolor='#fafafa', paper_bgcolor='#ffffff',
+        font=dict(family="SF Pro Display, -apple-system, sans-serif", color='#1d1d1f'),
+        legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
+                    font=dict(size=10)),
+        margin=dict(t=20, b=80),
+        xaxis=dict(gridcolor='#e5e5e7', range=[10, 40]),
+        yaxis=dict(gridcolor='#e5e5e7', range=[0, 0.85], tickformat='.0%')
+    )
+    fig.update_traces(
+        hovertemplate="<b>%{hovertext}</b><br>Usage: %{x:.1f}%<br>Star Prob: %{y:.1%}<extra></extra>"
+    )
 
-        # Tier lines
-        fig.add_hline(y=0.60, line_dash="dot", line_color="#FFD700",
-                      annotation_text="MVP Tier", annotation_position="right")
-        fig.add_hline(y=0.45, line_dash="dot", line_color="#C0C0C0",
-                      annotation_text="All-Star Tier", annotation_position="right")
-        fig.add_hline(y=0.25, line_dash="dot", line_color="#CD7F32",
-                      annotation_text="Starter Tier", annotation_position="right")
+    st.plotly_chart(fig, use_container_width=True)
 
-        # Top player labels
-        for _, player in df_plot.nlargest(5, 'star_prob').iterrows():
-            fig.add_annotation(
-                x=player['usg_max'], y=player['star_prob'] + 0.02,
-                text=player['player_name'].split()[-1],
-                showarrow=False, font=dict(size=10, color="white"),
-                bgcolor="rgba(0,0,0,0.5)", borderpad=3
-            )
+    # Tier summary
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("MVP Tier", len(df_year[df_year['tier'] == 'MVP']))
+    c2.metric("All-Star", len(df_year[df_year['tier'] == 'All-Star']))
+    c3.metric("Starter", len(df_year[df_year['tier'] == 'Starter']))
+    c4.metric("Role Player", len(df_year[df_year['tier'] == 'Role Player']))
 
+# ==============================================================================
+# 8. GRID VIEW
+# ==============================================================================
+elif view == "Grid" and len(df_year) > 0:
+    st.markdown("<p class='section-header'>Prospect Gallery</p>", unsafe_allow_html=True)
+
+    cols_per_row = 4
+    for row_start in range(0, min(20, len(df_year)), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for i, col in enumerate(cols):
+            idx = row_start + i
+            if idx < len(df_year):
+                p = df_year.iloc[idx]
+                nba_id = match_to_nba_player(p['player_name'], nba_players)
+                img_url = get_player_image_url(nba_id)
+                hl_url = get_highlight_url(p['player_name'])
+
+                with col:
+                    st.markdown(f"""
+                    <div class="grid-card">
+                        <img src="{img_url}" onerror="this.style.display='none'">
+                        <div class="grid-name">#{idx+1} {p['player_name']}</div>
+                        <div class="grid-archetype">{p['scout_role']}</div>
+                        <div class="grid-prob">{p['star_prob']*100:.0f}%</div>
+                        <div class="grid-prob-label">Star Probability</div>
+                        <a href="{hl_url}" target="_blank" class="highlight-btn" style="font-size:0.7rem; padding:6px 12px;">Highlights</a>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.markdown("")
+
+# ==============================================================================
+# 9. TABLE VIEW
+# ==============================================================================
+elif view == "Table" and len(df_year) > 0:
+    st.markdown("<p class='section-header'>Full Draft Board</p>", unsafe_allow_html=True)
+
+    display_cols = ['rank', 'player_name', 'scout_role', 'tier', 'star_prob',
+                    'bpm_max', 'usg_max', 'height_fmt', 'years_exp']
+    display_cols = [c for c in display_cols if c in df_year.columns]
+
+    styled = df_year[display_cols].rename(columns={
+        'rank': '#', 'player_name': 'Player', 'scout_role': 'Archetype',
+        'tier': 'Tier', 'star_prob': 'Star Prob', 'bpm_max': 'BPM',
+        'usg_max': 'Usage', 'height_fmt': 'Height', 'years_exp': 'Exp'
+    })
+
+    st.dataframe(
+        styled.style.format({'Star Prob': '{:.1%}', 'BPM': '{:.1f}', 'Usage': '{:.0f}', 'Exp': '{:.0f}'}
+        ).background_gradient(subset=['Star Prob'], cmap='Greens'),
+        use_container_width=True, hide_index=True, height=600
+    )
+
+# ==============================================================================
+# 10. COMPARISON
+# ==============================================================================
+if len(df_year) >= 2:
+    st.markdown("---")
+    st.markdown("<p class='section-header'>Compare Players</p>", unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2)
+    p1_name = c1.selectbox("Player 1", df_year['player_name'].tolist(), index=0, key="p1")
+    p2_opts = [n for n in df_year['player_name'].tolist() if n != p1_name]
+    p2_name = c2.selectbox("Player 2", p2_opts, index=0 if p2_opts else None, key="p2")
+
+    if p1_name and p2_name:
+        p1 = df_year[df_year['player_name'] == p1_name].iloc[0]
+        p2 = df_year[df_year['player_name'] == p2_name].iloc[0]
+
+        metrics = ['star_prob', 'bpm_max', 'usg_max', 'stock_rate']
+        labels = ['Star Prob', 'BPM', 'Usage', 'Stocks']
+
+        # Normalize for radar
+        vals1, vals2 = [], []
+        for m in metrics:
+            mx, mn = df_year[m].max(), df_year[m].min()
+            rng = mx - mn if mx != mn else 1
+            vals1.append((p1[m] - mn) / rng)
+            vals2.append((p2[m] - mn) / rng)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatterpolar(r=vals1 + [vals1[0]], theta=labels + [labels[0]],
+                                       fill='toself', name=p1_name, line_color='#ff3b30'))
+        fig.add_trace(go.Scatterpolar(r=vals2 + [vals2[0]], theta=labels + [labels[0]],
+                                       fill='toself', name=p2_name, line_color='#007aff'))
         fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-            legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
-            xaxis=dict(gridcolor='rgba(0,0,0,0.1)', range=[5, 40]),
-            yaxis=dict(gridcolor='rgba(0,0,0,0.1)', range=[0, 1], tickformat='.0%')
+            polar=dict(radialaxis=dict(visible=True, range=[0, 1], showticklabels=False)),
+            showlegend=True, height=350, margin=dict(t=30, b=30),
+            font=dict(family="SF Pro Display, -apple-system, sans-serif")
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
-        # Tier counts
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🥇 MVP Caliber", len(df_year[df_year['tier'] == 'MVP Caliber']))
-        col2.metric("⭐ All-Star", len(df_year[df_year['tier'] == 'All-Star Potential']))
-        col3.metric("✅ Starter", len(df_year[df_year['tier'] == 'Quality Starter']))
-        col4.metric("📋 Role Player", len(df_year[df_year['tier'] == 'Role Player']))
-
 # ==============================================================================
-# 8. GRID VIEW WITH IMAGES & HIGHLIGHTS
-# ==============================================================================
-elif view_mode == "Grid View":
-    st.subheader(f"📸 {selected_year} Prospect Gallery")
-
-    if search_term:
-        df_display = df_year[df_year['player_name'].str.contains(search_term, case=False, na=False)]
-    else:
-        df_display = df_year
-
-    # Number of columns
-    num_cols = 4
-
-    for row_start in range(0, len(df_display), num_cols):
-        cols = st.columns(num_cols)
-        for i, col in enumerate(cols):
-            idx = row_start + i
-            if idx < len(df_display):
-                player = df_display.iloc[idx]
-                nba_id, _ = match_to_nba_player(player['player_name'], nba_players)
-                img_url = get_player_image_url(nba_id)
-                highlight_url = get_highlight_url(player['player_name'])
-
-                with col:
-                    st.markdown(f"""
-                    <div class="player-grid-card">
-                        <img src="{img_url}" class="player-grid-image" onerror="this.src='https://cdn.nba.com/headshots/nba/latest/1040x760/fallback.png'">
-                        <h4 style="margin: 5px 0;">#{idx+1} {player['player_name']}</h4>
-                        <span style="background: {ARCH_COLORS.get(player['scout_role'], '#999')}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;">{player['scout_role']}</span>
-                        <p style="margin: 10px 0 5px 0;">
-                            <b style="font-size: 1.5rem; color: #4ecdc4;">{player['star_prob']*100:.0f}%</b><br>
-                            <span style="color: #666; font-size: 0.8rem;">Star Probability</span>
-                        </p>
-                        <p style="font-size: 0.8rem; color: #666;">
-                            📊 {player['bpm_max']:.1f} BPM | 📏 {player['height_fmt']}
-                        </p>
-                        <a href="{highlight_url}" target="_blank" style="background: #e74c3c; color: white; padding: 5px 10px; border-radius: 15px; text-decoration: none; font-size: 0.75rem;">▶️ Highlights</a>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    st.markdown("")  # Spacing
-
-# ==============================================================================
-# 9. DATA TABLE VIEW
-# ==============================================================================
-elif view_mode == "Data Table":
-    st.subheader("📋 Full Draft Board")
-
-    if search_term:
-        df_display = df_year[df_year['player_name'].str.contains(search_term, case=False, na=False)]
-    else:
-        df_display = df_year
-
-    # Add highlight links
-    df_display = df_display.copy()
-    df_display['Highlights'] = df_display['player_name'].apply(
-        lambda x: f"[▶️ Watch](https://www.youtube.com/results?search_query={x.replace(' ', '+')}+highlights)"
-    )
-
-    display_cols = ['Rank', 'player_name', 'scout_role', 'tier', 'star_prob',
-                    'bpm_max', 'usg_max', 'height_fmt', 'years_exp', 'Highlights']
-    display_cols = [c for c in display_cols if c in df_display.columns]
-
-    rename_map = {
-        'player_name': 'Player', 'scout_role': 'Archetype', 'tier': 'Tier',
-        'star_prob': 'Star Prob', 'bpm_max': 'BPM', 'usg_max': 'Usage',
-        'height_fmt': 'Height', 'years_exp': 'Exp'
-    }
-
-    styled_df = df_display[display_cols].rename(columns=rename_map)
-
-    st.dataframe(
-        styled_df.style.format({
-            "Star Prob": "{:.1%}", "BPM": "{:.1f}", "Usage": "{:.1f}", "Exp": "{:.0f}"
-        }).background_gradient(subset=['Star Prob'], cmap="RdYlGn"),
-        use_container_width=True, hide_index=True, height=600,
-        column_config={
-            "Highlights": st.column_config.LinkColumn("Highlights", display_text="▶️ Watch")
-        }
-    )
-
-# ==============================================================================
-# 10. PLAYER COMPARISON
+# FOOTER
 # ==============================================================================
 st.markdown("---")
-st.subheader("🔄 Player Comparison")
-
-if len(df_year) >= 2:
-    compare_cols = st.columns(2)
-
-    with compare_cols[0]:
-        player1 = st.selectbox("Select Player 1", df_year['player_name'].tolist(), index=0)
-
-    with compare_cols[1]:
-        player2_options = [p for p in df_year['player_name'].tolist() if p != player1]
-        player2 = st.selectbox("Select Player 2", player2_options, index=0 if player2_options else 0)
-
-    if player1 and player2:
-        p1_data = df_year[df_year['player_name'] == player1].iloc[0]
-        p2_data = df_year[df_year['player_name'] == player2].iloc[0]
-
-        # Get images
-        p1_id, _ = match_to_nba_player(player1, nba_players)
-        p2_id, _ = match_to_nba_player(player2, nba_players)
-
-        img_col1, radar_col, img_col2 = st.columns([1, 2, 1])
-
-        with img_col1:
-            st.image(get_player_image_url(p1_id), width=150)
-            st.markdown(f"**{player1}**")
-            st.caption(f"{p1_data['scout_role']}")
-            st.metric("Star Prob", f"{p1_data['star_prob']*100:.1f}%")
-
-        with img_col2:
-            st.image(get_player_image_url(p2_id), width=150)
-            st.markdown(f"**{player2}**")
-            st.caption(f"{p2_data['scout_role']}")
-            st.metric("Star Prob", f"{p2_data['star_prob']*100:.1f}%")
-
-        with radar_col:
-            compare_metrics = ['star_prob', 'bpm_max', 'usg_max', 'stock_rate', 'adj_proj_vorp']
-            metric_names = ['Star Prob', 'BPM', 'Usage', 'Stocks', 'Proj VORP']
-
-            fig_radar = go.Figure()
-
-            p1_values, p2_values = [], []
-            for metric in compare_metrics:
-                max_val = df_year[metric].max()
-                min_val = df_year[metric].min()
-                range_val = max_val - min_val if max_val != min_val else 1
-                p1_values.append((p1_data[metric] - min_val) / range_val)
-                p2_values.append((p2_data[metric] - min_val) / range_val)
-
-            fig_radar.add_trace(go.Scatterpolar(
-                r=p1_values + [p1_values[0]], theta=metric_names + [metric_names[0]],
-                fill='toself', name=player1, line_color='#FF6B6B'
-            ))
-            fig_radar.add_trace(go.Scatterpolar(
-                r=p2_values + [p2_values[0]], theta=metric_names + [metric_names[0]],
-                fill='toself', name=player2, line_color='#4ECDC4'
-            ))
-
-            fig_radar.update_layout(
-                polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-                showlegend=True, height=350
-            )
-            st.plotly_chart(fig_radar, use_container_width=True)
-
-# ==============================================================================
-# 11. FOOTER
-# ==============================================================================
-st.markdown("---")
-st.caption("🏀 NBA Draft Oracle | Model trained on 2010-2024 NCAA data | Images from NBA.com")
+st.caption("NBA Draft Oracle · Model trained on 2010–2024 college data · Player images from NBA.com")
