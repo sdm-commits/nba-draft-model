@@ -390,10 +390,11 @@ def match_to_nba_player(college_name, nba_df):
 # 3. LOAD DATA
 # ==============================================================================
 @st.cache_data
-possible_paths = [
-    "all_draft_predictions.csv",  # Add this first
-    "nba_draft_predictions.csv",
-    "2025_draft_predictions.csv",
+def load_data():
+    possible_paths = [
+        "all_draft_predictions.csv",
+        "nba_draft_predictions.csv",
+        "2025_draft_predictions.csv",
     ]
     df = None
     for path in possible_paths:
