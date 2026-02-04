@@ -154,11 +154,11 @@ nba_api>=1.4.1
 
 ## 🔮 Future Improvements
 
-- [ ] Add wingspan/standing reach data
-- [ ] Incorporate tracking data (shot creation, defensive metrics)
 - [ ] Model injury risk separately
 - [ ] Ensemble with mock draft consensus
+- [ ] Historical player comps (e.g., "plays like young SGA")
 - [ ] Add prospect comparison tool
+- [ ] Ensemble with mock draft consensus
 
 ## 📝 License
 
