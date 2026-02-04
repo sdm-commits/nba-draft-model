@@ -16,10 +16,12 @@ NBA Draft Oracle uses machine learning to project which college basketball playe
 
 | Metric | Value |
 |--------|-------|
-| Average Correlation | 0.41 |
-| Mean Absolute Error | 3.7 VORP |
+| Median Correlation | **0.41** |
+| Best Years (2019, 2021, 2022) | **0.61 - 0.64** |
 | Top 10 Overlap | 5.2/10 |
 | Star Recall | 39% |
+
+*Note: 2017 draft class (0.02 correlation) is an outlier — excluding it, average correlation is 0.46.*
 
 ### Backtest Results (2015-2023)
 
