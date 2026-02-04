@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -56,6 +55,25 @@ HIGH_PROFILE_CHECKS = [
     {"name": "Jalen Brunson", "year": 2018, "pred": 1.8, "actual": 15.3, "status": "miss"},
     {"name": "Anthony Edwards", "year": 2020, "pred": 2.8, "actual": 11.5, "status": "miss"},
     {"name": "Domantas Sabonis", "year": 2016, "pred": 2.2, "actual": 26.5, "status": "miss"},
+]
+
+# Top 25 actual VORP players - how did model rank them?
+TOP_VORP_PLAYERS = [
+    {"rank": 1, "name": "Karl-Anthony Towns", "year": 2015, "vorp_rk": 1, "star_rk": 2, "actual": 35.0, "status": "hit"},
+    {"rank": 2, "name": "Jayson Tatum", "year": 2017, "vorp_rk": 7, "star_rk": 4, "actual": 29.1, "status": "hit"},
+    {"rank": 3, "name": "Shai Gilgeous-Alexander", "year": 2018, "vorp_rk": 9, "star_rk": 5, "actual": 28.2, "status": "hit"},
+    {"rank": 4, "name": "Domantas Sabonis", "year": 2016, "vorp_rk": 11, "star_rk": 18, "actual": 26.5, "status": "good"},
+    {"rank": 5, "name": "Donovan Mitchell", "year": 2017, "vorp_rk": 40, "star_rk": 17, "actual": 24.7, "status": "miss"},
+    {"rank": 6, "name": "Pascal Siakam", "year": 2016, "vorp_rk": 3, "star_rk": 13, "actual": 19.5, "status": "hit"},
+    {"rank": 7, "name": "Trae Young", "year": 2018, "vorp_rk": 1, "star_rk": 6, "actual": 18.7, "status": "hit"},
+    {"rank": 8, "name": "Tyrese Haliburton", "year": 2020, "vorp_rk": 4, "star_rk": 12, "actual": 18.1, "status": "hit"},
+    {"rank": 9, "name": "Devin Booker", "year": 2015, "vorp_rk": 32, "star_rk": 25, "actual": 17.9, "status": "miss"},
+    {"rank": 10, "name": "Jarrett Allen", "year": 2017, "vorp_rk": 36, "star_rk": 38, "actual": 17.3, "status": "miss"},
+    {"rank": 11, "name": "Jalen Brunson", "year": 2018, "vorp_rk": 12, "star_rk": 13, "actual": 15.3, "status": "good"},
+    {"rank": 12, "name": "Ben Simmons", "year": 2016, "vorp_rk": 1, "star_rk": 2, "actual": 15.0, "status": "hit"},
+    {"rank": 13, "name": "Derrick White", "year": 2017, "vorp_rk": 38, "star_rk": 14, "actual": 14.5, "status": "good"},
+    {"rank": 14, "name": "Myles Turner", "year": 2015, "vorp_rk": 12, "star_rk": 6, "actual": 12.7, "status": "good"},
+    {"rank": 15, "name": "De'Aaron Fox", "year": 2017, "vorp_rk": 11, "star_rk": 5, "actual": 12.7, "status": "good"},
 ]
 
 # Clean, Apple-inspired CSS
@@ -581,9 +599,31 @@ elif view == "Model":
     )
     st.plotly_chart(fig, use_container_width=True)
 
+    # Top VORP players - how did model rank them?
+    st.markdown("<p class='section-header'>Top 15 Actual VORP — Model Rankings</p>", unsafe_allow_html=True)
+    st.caption("How did the model rank the players who became the best in the NBA?")
+
+    # Count hits vs misses
+    top15_hits = len([p for p in TOP_VORP_PLAYERS if p['status'] in ['hit', 'good']])
+    st.markdown(f"**{top15_hits}/15** top VORP players ranked in model's top 20 by either VORP or Star Prob")
+
+    df_top = pd.DataFrame(TOP_VORP_PLAYERS)
+    df_top['Best Rank'] = df_top[['vorp_rk', 'star_rk']].min(axis=1)
+    df_top['Result'] = df_top['status'].map({'hit': '✅', 'good': '👍', 'miss': '⚠️'})
+
+    st.dataframe(
+        df_top[['rank', 'name', 'year', 'actual', 'vorp_rk', 'star_rk', 'Best Rank', 'Result']].rename(columns={
+            'rank': '#', 'name': 'Player', 'year': 'Year', 'actual': 'Career VORP',
+            'vorp_rk': 'VORP Rank', 'star_rk': 'Star Rank', 'Best Rank': 'Best'
+        }),
+        use_container_width=True, hide_index=True, height=400
+    )
+
+    st.caption("✅ = Top 10 by either metric | 👍 = Top 20 by either metric | ⚠️ = Missed (ranked >20)")
+
     # High-profile player checks
-    st.markdown("<p class='section-header'>High-Profile Player Checks</p>", unsafe_allow_html=True)
-    st.caption("Comparing model predictions (VORP) vs actual career VORP for notable players")
+    st.markdown("<p class='section-header'>Prediction vs Actual VORP</p>", unsafe_allow_html=True)
+    st.caption("Comparing predicted VORP to actual career VORP for notable players")
 
     hits = [p for p in HIGH_PROFILE_CHECKS if p['status'] == 'hit']
     misses = [p for p in HIGH_PROFILE_CHECKS if p['status'] == 'miss']
