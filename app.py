@@ -16,18 +16,18 @@ st.set_page_config(page_title="NBA Draft Oracle", layout="wide", page_icon="🏀
 EXCLUDED_PLAYERS = {
     2025: [
         "Nate Bittle",
-        "Yaxel Lendeborg", 
+        "Yaxel Lendeborg",
         "Nolan Winter",
         "Joshua Jefferson",
         "Thomas Haugh",
         "Alvaro Folgueiras",
         "Tomislav Ivisic",
         "JT Toppin",
-        "Bennett Stirtz", 
+        "Bennett Stirtz",
         "Zuby Ejiofor",
-        "Mouhamed Dioubate", 
-        "Joseph Tugler", 
-        "Jayden Quaintance", 
+        "Mouhamed Dioubate",
+        "Joseph Tugler",
+        "Jayden Quaintance",
         "Keanu Dawes",
         "Malik Reneau",
         "Henri Veesaar",
@@ -36,7 +36,7 @@ EXCLUDED_PLAYERS = {
         "Miles Byrd",
         "Amael L'Etang",
         "Mister Dean",
-        "Eric Dailey Jr.", 
+        "Eric Dailey Jr.",
         "Darrion Williams",
         "Trey Kaufman-Renn",
         "Xaivian Lee",
@@ -58,7 +58,6 @@ st.markdown("""
     header[data-testid="stHeader"] {
         background: transparent;
     }
-
     /* Typography */
     .main-title {
         font-size: 2.2rem;
@@ -73,7 +72,6 @@ st.markdown("""
         font-weight: 400;
         margin-bottom: 1.5rem;
     }
-
     /* Player Card - Updated Design */
     .player-card {
         background: #ffffff;
@@ -87,7 +85,6 @@ st.markdown("""
         border-color: #0071e3;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
-
     /* Rank Badge */
     .rank-badge {
         position: absolute;
@@ -106,7 +103,6 @@ st.markdown("""
     }
     .rank-badge.top3 { background: #bf8700; }
     .rank-badge.top10 { background: #5856d6; }
-
     /* Card Header */
     .card-header {
         display: flex;
@@ -137,12 +133,10 @@ st.markdown("""
     .tier-badge.tier1 { background: #fef3c7; color: #92400e; }
     .tier-badge.tier2 { background: #ede9fe; color: #5b21b6; }
     .tier-badge.tier3 { background: #d1fae5; color: #065f46; }
-
     .archetype-label {
         color: #86868b;
         font-size: 0.75rem;
     }
-
     /* Rating */
     .rating-box {
         text-align: right;
@@ -157,7 +151,6 @@ st.markdown("""
         color: #86868b;
         text-transform: uppercase;
     }
-
     /* Comparison Bar */
     .comparison-bar {
         margin: 16px 0;
@@ -188,7 +181,6 @@ st.markdown("""
         font-weight: 600;
         color: #1d1d1f;
     }
-
     /* Stats Row */
     .stats-row {
         display: flex;
@@ -210,7 +202,6 @@ st.markdown("""
         color: #86868b;
         text-transform: uppercase;
     }
-
     /* Results Card */
     .results-card {
         background: #ffffff;
@@ -239,7 +230,6 @@ st.markdown("""
     .draft-pick.lottery { background: #fef3c7; color: #92400e; }
     .draft-pick.first-round { background: #d1fae5; color: #065f46; }
     .draft-pick.second-round { background: #f3f4f6; color: #6b7280; }
-
     .results-stats {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -256,7 +246,6 @@ st.markdown("""
         color: #86868b;
         text-transform: uppercase;
     }
-
     /* Highlight Button */
     .highlight-btn {
         display: inline-block;
@@ -273,7 +262,6 @@ st.markdown("""
     .highlight-btn:hover {
         background: #424245;
     }
-
     /* Section Headers */
     .section-header {
         font-size: 1.1rem;
@@ -281,7 +269,6 @@ st.markdown("""
         color: #1d1d1f;
         margin: 2rem 0 1rem 0;
     }
-
     /* Grid */
     .prospect-grid {
         display: grid;
@@ -414,6 +401,7 @@ def load_data():
         if os.path.exists(path):
             df = pd.read_csv(path)
             break
+
     if df is None:
         return None
 
@@ -439,6 +427,12 @@ def load_data():
         if col not in df.columns:
             df[col] = val
 
+    # Calculate age_adjusted_bpm if not present
+    # Younger players with same BPM are more valuable
+    # years_exp=1 (freshman) gets 1.25x multiplier, senior gets 0.8x
+    if 'age_adjusted_bpm' not in df.columns:
+        df['age_adjusted_bpm'] = df['bpm_max'] * (1.4 - (df['years_exp'] * 0.15))
+
     df['tier'] = pd.cut(df['star_prob'],
                         bins=[-1, 0.25, 0.45, 0.60, 1.01],
                         labels=['Role Player', 'Starter', 'All-Star', 'MVP'])
@@ -449,6 +443,7 @@ def load_data():
     return df
 
 df = load_data()
+
 if df is None:
     st.error("Data file not found. Please add your predictions CSV.")
     st.stop()
@@ -475,6 +470,7 @@ if excluded_players:
 
 archetypes = ['All'] + sorted([a for a in df_year['scout_role'].dropna().unique() if isinstance(a, str)])
 selected_arch = st.sidebar.selectbox("Archetype", archetypes)
+
 if selected_arch != 'All':
     df_year = df_year[df_year['scout_role'] == selected_arch]
 
@@ -500,7 +496,6 @@ st.markdown("<p class='subtitle'>Projecting future NBA stars from college perfor
 if view == "Board" and len(df_year) > 0:
     # Top 3 featured
     st.markdown("<p class='section-header'>Top Prospects</p>", unsafe_allow_html=True)
-
     cols = st.columns(3)
     for i, col in enumerate(cols):
         if i < len(df_year):
@@ -552,7 +547,6 @@ if view == "Board" and len(df_year) > 0:
 
     # Rest of top 10
     st.markdown("<p class='section-header'>Prospects 4-10</p>", unsafe_allow_html=True)
-
     for i in range(3, min(10, len(df_year))):
         p = df_year.iloc[i]
         cols = st.columns([0.5, 2.5, 1.5, 1, 1, 1])
@@ -564,36 +558,86 @@ if view == "Board" and len(df_year) > 0:
         cols[5].markdown(f"{p['usg_max']:.0f}% USG")
 
 # ==============================================================================
-# 7. CHART VIEW (Cleaned up with sweet spot)
+# 7. CHART VIEW - Merged with toggle between Star Prob and Age-Adjusted BPM
 # ==============================================================================
 elif view == "Chart" and len(df_year) > 0:
     st.markdown("<p class='section-header'>Draft Landscape</p>", unsafe_allow_html=True)
 
-    # Limit to top 30 for cleaner chart
-    df_plot = df_year.head(30).copy()
-    min_bpm = df_plot['bpm_max'].min()
-    df_plot['size'] = (df_plot['bpm_max'] - min_bpm + 5).clip(lower=5)
+    # Toggle between views
+    chart_type = st.radio("Y-Axis", ["Star Probability", "Age-Adjusted BPM"], horizontal=True)
+
+    # Limit to top 40 for cleaner chart
+    df_plot = df_year.head(40).copy()
+
+    # Size based on star_prob (model confidence)
+    df_plot['size'] = (df_plot['star_prob'] * 30 + 8).clip(8, 25)
 
     fig = go.Figure()
 
-    # Add sweet spot rectangle (green zone for All-Star potential)
-    fig.add_shape(
-        type="rect",
-        x0=22, x1=35,  # Usage range
-        y0=0.40, y1=0.75,  # Star prob range
-        fillcolor="rgba(52, 199, 89, 0.12)",
-        line=dict(color="rgba(52, 199, 89, 0.4)", width=2, dash="dot"),
-        layer="below"
-    )
+    if chart_type == "Age-Adjusted BPM":
+        y_col = 'age_adjusted_bpm'
+        y_title = "Age-Adjusted BPM"
+        y_range = [df_plot[y_col].min() - 1, df_plot[y_col].max() + 2]
 
-    # Add annotation for sweet spot
-    fig.add_annotation(
-        x=33, y=0.72,
-        text="Sweet Spot",
-        showarrow=False,
-        font=dict(size=11, color="#34c759", weight="bold"),
-        opacity=0.8
-    )
+        # Sweet spot: high usage + high age-adjusted BPM
+        fig.add_shape(
+            type="rect",
+            x0=23, x1=35,
+            y0=10, y1=18,
+            fillcolor="rgba(52, 199, 89, 0.12)",
+            line=dict(color="rgba(52, 199, 89, 0.4)", width=2, dash="dot"),
+            layer="below"
+        )
+        fig.add_annotation(
+            x=34, y=17,
+            text="🎯 Sweet Spot",
+            showarrow=False,
+            font=dict(size=11, color="#34c759"),
+            opacity=0.8
+        )
+
+        # Tier lines for age-adjusted BPM
+        fig.add_hline(y=12, line_dash="dot", line_color="#bf8700", line_width=1,
+                      annotation_text="Elite (12+)", annotation_position="right",
+                      annotation_font_size=9, annotation_font_color="#bf8700")
+        fig.add_hline(y=8, line_dash="dot", line_color="#5856d6", line_width=1,
+                      annotation_text="Star Potential (8+)", annotation_position="right",
+                      annotation_font_size=9, annotation_font_color="#5856d6")
+
+        y_format = '.1f'
+        hover_template = "<b>%{hovertext}</b><br>Usage: %{x:.1f}%<br>Age-Adj BPM: %{y:.1f}<br>Exp: %{customdata[0]:.0f} yr<extra></extra>"
+
+    else:  # Star Probability
+        y_col = 'star_prob'
+        y_title = "Star Probability"
+        y_range = [0.05, 0.80]
+
+        # Sweet spot for star prob
+        fig.add_shape(
+            type="rect",
+            x0=22, x1=35,
+            y0=0.40, y1=0.75,
+            fillcolor="rgba(52, 199, 89, 0.12)",
+            line=dict(color="rgba(52, 199, 89, 0.4)", width=2, dash="dot"),
+            layer="below"
+        )
+        fig.add_annotation(
+            x=33, y=0.72,
+            text="Sweet Spot",
+            showarrow=False,
+            font=dict(size=11, color="#34c759"),
+            opacity=0.8
+        )
+
+        fig.add_hline(y=0.60, line_dash="dot", line_color="#bf8700", line_width=1,
+                      annotation_text="MVP Tier", annotation_position="right",
+                      annotation_font_size=9, annotation_font_color="#bf8700")
+        fig.add_hline(y=0.45, line_dash="dot", line_color="#5856d6", line_width=1,
+                      annotation_text="All-Star", annotation_position="right",
+                      annotation_font_size=9, annotation_font_color="#5856d6")
+
+        y_format = '.0%'
+        hover_template = "<b>%{hovertext}</b><br>Usage: %{x:.1f}%<br>Star Prob: %{y:.1%}<extra></extra>"
 
     # Add scatter points by archetype
     for arch in df_plot['scout_role'].unique():
@@ -602,29 +646,22 @@ elif view == "Chart" and len(df_year) > 0:
 
         fig.add_trace(go.Scatter(
             x=df_arch['usg_max'],
-            y=df_arch['star_prob'],
+            y=df_arch[y_col],
             mode='markers+text',
             name=arch,
             marker=dict(
-                size=df_arch['size'] * 1.5,
+                size=df_arch['size'],
                 color=color,
                 opacity=0.8,
-                line=dict(width=1, color='white')
+                line=dict(width=1.5, color='white')
             ),
             text=df_arch['player_name'].apply(lambda x: x.split()[-1]),
             textposition='top center',
             textfont=dict(size=9),
-            hovertemplate="<b>%{hovertext}</b><br>Usage: %{x:.1f}%<br>Star Prob: %{y:.1%}<extra></extra>",
-            hovertext=df_arch['player_name']
+            hovertemplate=hover_template,
+            hovertext=df_arch['player_name'],
+            customdata=df_arch[['years_exp']].values if chart_type == "Age-Adjusted BPM" else None
         ))
-
-    # Tier lines
-    fig.add_hline(y=0.60, line_dash="dot", line_color="#bf8700", line_width=1,
-                  annotation_text="MVP Tier", annotation_position="right",
-                  annotation_font_size=9, annotation_font_color="#bf8700")
-    fig.add_hline(y=0.45, line_dash="dot", line_color="#5856d6", line_width=1,
-                  annotation_text="All-Star", annotation_position="right",
-                  annotation_font_size=9, annotation_font_color="#5856d6")
 
     fig.update_layout(
         plot_bgcolor='#fafafa',
@@ -639,27 +676,35 @@ elif view == "Chart" and len(df_year) > 0:
             dtick=5
         ),
         yaxis=dict(
-            title="Star Probability",
+            title=y_title,
             gridcolor='#e5e5e7',
-            range=[0.15, 0.75],
-            tickformat='.0%'
+            range=y_range,
+            tickformat=y_format
         ),
-        height=500,
+        height=520,
         showlegend=True
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Quick stats
-    c1, c2, c3 = st.columns(3)
-    sweet_spot = df_year[(df_year['usg_max'] >= 22) & (df_year['usg_max'] <= 35) &
-                          (df_year['star_prob'] >= 0.40)]
-    c1.metric("In Sweet Spot", len(sweet_spot))
-    c2.metric("All-Star Tier+", len(df_year[df_year['star_prob'] >= 0.45]))
-    c3.metric("Avg Star Prob", f"{df_year['star_prob'].mean():.1%}")
+    # Quick stats - updated for both views
+    c1, c2, c3, c4 = st.columns(4)
+    if chart_type == "Age-Adjusted BPM":
+        elite = df_year[df_year['age_adjusted_bpm'] >= 12]
+        sweet_spot = df_year[(df_year['usg_max'] >= 23) & (df_year['age_adjusted_bpm'] >= 10)]
+        c1.metric("Elite Age-Adj BPM (12+)", len(elite))
+        c2.metric("In Sweet Spot", len(sweet_spot))
+        c3.metric("Freshmen in Top 10", len(df_year.head(10)[df_year.head(10)['years_exp'] == 1]))
+        c4.metric("Avg Age-Adj BPM", f"{df_year['age_adjusted_bpm'].mean():.1f}")
+    else:
+        sweet_spot = df_year[(df_year['usg_max'] >= 22) & (df_year['star_prob'] >= 0.40)]
+        c1.metric("In Sweet Spot", len(sweet_spot))
+        c2.metric("All-Star Tier+", len(df_year[df_year['star_prob'] >= 0.45]))
+        c3.metric("Freshmen in Top 10", len(df_year.head(10)[df_year.head(10)['years_exp'] == 1]))
+        c4.metric("Avg Star Prob", f"{df_year['star_prob'].mean():.1%}")
 
 # ==============================================================================
-# 8. RESULTS VIEW (New - shows actual draft results)
+# 8. RESULTS VIEW (Shows actual draft results)
 # ==============================================================================
 elif view == "Results":
     st.markdown("<p class='section-header'>Draft Results & Rookie Performance</p>", unsafe_allow_html=True)
@@ -678,7 +723,6 @@ elif view == "Results":
         else:
             # Match predictions to actual draft picks
             results = []
-
             for _, pred in df_year.head(20).iterrows():
                 player_name = pred['player_name']
 
@@ -697,6 +741,7 @@ elif view == "Results":
                         season = "2024-25"
                     else:
                         season = "2023-24"
+
                     stats = get_player_season_stats(pick['PERSON_ID'], season)
 
                     results.append({
@@ -719,7 +764,12 @@ elif view == "Results":
                     img_url = get_player_image_url(r['player_id'])
 
                     if r['ppg'] is not None:
-                        stats_html = f'<div class="results-stats"><div><div class="results-stat-value">{r["ppg"]:.1f}</div><div class="results-stat-label">PPG</div></div><div><div class="results-stat-value">{r["rpg"]:.1f}</div><div class="results-stat-label">RPG</div></div><div><div class="results-stat-value">{r["apg"]:.1f}</div><div class="results-stat-label">APG</div></div><div><div class="results-stat-value">{r["gp"]}</div><div class="results-stat-label">GP</div></div></div>'
+                        stats_html = f'''<div class="results-stats">
+                            <div><div class="results-stat-value">{r["ppg"]:.1f}</div><div class="results-stat-label">PPG</div></div>
+                            <div><div class="results-stat-value">{r["rpg"]:.1f}</div><div class="results-stat-label">RPG</div></div>
+                            <div><div class="results-stat-value">{r["apg"]:.1f}</div><div class="results-stat-label">APG</div></div>
+                            <div><div class="results-stat-value">{r["gp"]}</div><div class="results-stat-label">GP</div></div>
+                        </div>'''
                     else:
                         stats_html = '<div style="color:#86868b; font-size:0.8rem; margin-top:8px;">No stats available yet</div>'
 
@@ -763,168 +813,30 @@ elif view == "Table" and len(df_year) > 0:
     st.markdown("<p class='section-header'>Full Draft Board</p>", unsafe_allow_html=True)
 
     display_cols = ['rank', 'player_name', 'scout_role', 'tier', 'star_prob', 'rating',
-                    'bpm_max', 'usg_max', 'height_fmt', 'years_exp']
+                    'bpm_max', 'usg_max', 'height_fmt', 'years_exp', 'age_adjusted_bpm']
     display_cols = [c for c in display_cols if c in df_year.columns]
 
     styled = df_year[display_cols].rename(columns={
         'rank': '#', 'player_name': 'Player', 'scout_role': 'Archetype',
         'tier': 'Tier', 'star_prob': 'Star Prob', 'rating': 'Rating',
-        'bpm_max': 'BPM', 'usg_max': 'Usage', 'height_fmt': 'Height', 'years_exp': 'Exp'
+        'bpm_max': 'BPM', 'usg_max': 'Usage', 'height_fmt': 'Height',
+        'years_exp': 'Exp', 'age_adjusted_bpm': 'Age-Adj BPM'
     })
 
     st.dataframe(
-        styled.style.format({'Star Prob': '{:.1%}', 'Rating': '{:.0f}', 'BPM': '{:.1f}', 'Usage': '{:.0f}', 'Exp': '{:.0f}'}
-        ).background_gradient(subset=['Rating'], cmap='Greens'),
+        styled.style.format({
+            'Star Prob': '{:.1%}',
+            'Rating': '{:.0f}',
+            'BPM': '{:.1f}',
+            'Usage': '{:.0f}',
+            'Exp': '{:.0f}',
+            'Age-Adj BPM': '{:.1f}'
+        }).background_gradient(subset=['Rating'], cmap='Greens'),
         use_container_width=True, hide_index=True, height=600
     )
 
 # ==============================================================================
-# FOOTER
+# FOOTER (at the very end, after all view conditionals)
 # ==============================================================================
 st.markdown("---")
 st.caption("NBA Draft Oracle · Model trained on 2010–2024 college data · Player images from NBA.com")
-# ==============================================================================
-# 7. CHART VIEW - Updated to use Age-Adjusted BPM
-# ==============================================================================
-elif view == "Chart" and len(df_year) > 0:
-    st.markdown("<p class='section-header'>Draft Landscape</p>", unsafe_allow_html=True)
-    
-    # Toggle between views
-    chart_type = st.radio("Y-Axis", ["Age-Adjusted BPM", "Star Probability"], horizontal=True)
-    
-    # Limit to top 40 for cleaner chart
-    df_plot = df_year.head(40).copy()
-    
-    # Size based on star_prob (model confidence)
-    df_plot['size'] = (df_plot['star_prob'] * 30 + 8).clip(8, 25)
-    
-    fig = go.Figure()
-    
-    if chart_type == "Age-Adjusted BPM":
-        y_col = 'age_adjusted_bpm'
-        y_title = "Age-Adjusted BPM"
-        y_range = [df_plot[y_col].min() - 1, df_plot[y_col].max() + 2]
-        
-        # Sweet spot: high usage + high age-adjusted BPM
-        fig.add_shape(
-            type="rect",
-            x0=23, x1=35,
-            y0=10, y1=18,
-            fillcolor="rgba(52, 199, 89, 0.12)",
-            line=dict(color="rgba(52, 199, 89, 0.4)", width=2, dash="dot"),
-            layer="below"
-        )
-        fig.add_annotation(
-            x=34, y=17,
-            text="🎯 Sweet Spot",
-            showarrow=False,
-            font=dict(size=11, color="#34c759", weight="bold"),
-            opacity=0.8
-        )
-        
-        # Tier lines for age-adjusted BPM
-        fig.add_hline(y=12, line_dash="dot", line_color="#bf8700", line_width=1,
-                      annotation_text="Elite (12+)", annotation_position="right",
-                      annotation_font_size=9, annotation_font_color="#bf8700")
-        fig.add_hline(y=8, line_dash="dot", line_color="#5856d6", line_width=1,
-                      annotation_text="Star Potential (8+)", annotation_position="right",
-                      annotation_font_size=9, annotation_font_color="#5856d6")
-        
-        y_format = '.1f'
-        hover_template = "<b>%{hovertext}</b><br>Usage: %{x:.1f}%<br>Age-Adj BPM: %{y:.1f}<br>Age: %{customdata[0]:.0f} yrs<extra></extra>"
-        
-    else:
-        y_col = 'star_prob'
-        y_title = "Star Probability"
-        y_range = [0.05, 0.80]
-        
-        # Sweet spot for star prob
-        fig.add_shape(
-            type="rect",
-            x0=22, x1=35,
-            y0=0.40, y1=0.75,
-            fillcolor="rgba(52, 199, 89, 0.12)",
-            line=dict(color="rgba(52, 199, 89, 0.4)", width=2, dash="dot"),
-            layer="below"
-        )
-        fig.add_annotation(
-            x=33, y=0.72,
-            text="Sweet Spot",
-            showarrow=False,
-            font=dict(size=11, color="#34c759", weight="bold"),
-            opacity=0.8
-        )
-        
-        fig.add_hline(y=0.60, line_dash="dot", line_color="#bf8700", line_width=1,
-                      annotation_text="MVP Tier", annotation_position="right",
-                      annotation_font_size=9, annotation_font_color="#bf8700")
-        fig.add_hline(y=0.45, line_dash="dot", line_color="#5856d6", line_width=1,
-                      annotation_text="All-Star", annotation_position="right",
-                      annotation_font_size=9, annotation_font_color="#5856d6")
-        
-        y_format = '.0%'
-        hover_template = "<b>%{hovertext}</b><br>Usage: %{x:.1f}%<br>Star Prob: %{y:.1%}<extra></extra>"
-    
-    # Add scatter points by archetype
-    for arch in df_plot['scout_role'].unique():
-        df_arch = df_plot[df_plot['scout_role'] == arch]
-        color = ARCH_COLORS.get(arch, '#86868b')
-        
-        fig.add_trace(go.Scatter(
-            x=df_arch['usg_max'],
-            y=df_arch[y_col],
-            mode='markers+text',
-            name=arch,
-            marker=dict(
-                size=df_arch['size'],
-                color=color,
-                opacity=0.8,
-                line=dict(width=1.5, color='white')
-            ),
-            text=df_arch['player_name'].apply(lambda x: x.split()[-1]),
-            textposition='top center',
-            textfont=dict(size=9),
-            hovertemplate=hover_template,
-            hovertext=df_arch['player_name'],
-            customdata=df_arch[['years_exp']].values if chart_type == "Age-Adjusted BPM" else None
-        ))
-    
-    fig.update_layout(
-        plot_bgcolor='#fafafa',
-        paper_bgcolor='#ffffff',
-        font=dict(family="SF Pro Display, -apple-system, sans-serif", color='#1d1d1f'),
-        legend=dict(orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5, font=dict(size=9)),
-        margin=dict(t=30, b=80, l=60, r=40),
-        xaxis=dict(
-            title="Usage Rate %",
-            gridcolor='#e5e5e7',
-            range=[15, 38],
-            dtick=5
-        ),
-        yaxis=dict(
-            title=y_title,
-            gridcolor='#e5e5e7',
-            range=y_range,
-            tickformat=y_format
-        ),
-        height=520,
-        showlegend=True
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Quick stats - updated for age-adjusted view
-    c1, c2, c3, c4 = st.columns(4)
-    if chart_type == "Age-Adjusted BPM":
-        elite = df_year[df_year['age_adjusted_bpm'] >= 12]
-        sweet_spot = df_year[(df_year['usg_max'] >= 23) & (df_year['age_adjusted_bpm'] >= 10)]
-        c1.metric("Elite Age-Adj BPM (12+)", len(elite))
-        c2.metric("In Sweet Spot", len(sweet_spot))
-        c3.metric("Freshmen in Top 10", len(df_year.head(10)[df_year.head(10)['years_exp'] == 1]))
-        c4.metric("Avg Age-Adj BPM", f"{df_year['age_adjusted_bpm'].mean():.1f}")
-    else:
-        sweet_spot = df_year[(df_year['usg_max'] >= 22) & (df_year['star_prob'] >= 0.40)]
-        c1.metric("In Sweet Spot", len(sweet_spot))
-        c2.metric("All-Star Tier+", len(df_year[df_year['star_prob'] >= 0.45]))
-        c3.metric("Freshmen in Top 10", len(df_year.head(10)[df_year.head(10)['years_exp'] == 1]))
-        c4.metric("Avg Star Prob", f"{df_year['star_prob'].mean():.1%}")
