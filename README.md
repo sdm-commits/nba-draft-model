@@ -10,7 +10,7 @@ An ML-powered NBA draft projection model that predicts future NBA success from c
 
 NBA Draft Oracle uses machine learning to project which college basketball players will become NBA stars. The model is trained on 15 years of college data (2010-2024) and validated using walk-forward backtesting against actual NBA career outcomes.
 
-**Live Demo**: [Your Streamlit App URL]
+**Live Demo**: [[Your Streamlit App URL]](https://nba-draft-model.streamlit.app/)
 
 ## 📊 Model Performance
 
