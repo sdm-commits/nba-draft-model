@@ -392,6 +392,7 @@ def match_to_nba_player(college_name, nba_df):
 @st.cache_data
 def load_data():
     possible_paths = [
+        "all_draft_predictions_2024_2026.csv",
         "all_draft_predictions.csv",
         "nba_draft_predictions.csv",
         "2025_draft_predictions.csv",
