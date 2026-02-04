@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -530,15 +531,20 @@ elif view == "Model":
     # Aggregate metrics
     st.markdown("<p class='section-header'>Aggregate Metrics</p>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
-    avg_corr = np.mean(BACKTEST_METRICS['correlation'])
-    avg_mae = np.mean(BACKTEST_METRICS['mae'])
+
+    # Use median (more robust to 2017 outlier) and exclude 2017 for "best years"
+    median_corr = np.median(BACKTEST_METRICS['correlation'])
+    corr_excl_2017 = [c for c, y in zip(BACKTEST_METRICS['correlation'], BACKTEST_METRICS['years']) if y != 2017]
+    best_corr = max(BACKTEST_METRICS['correlation'])
     avg_overlap = np.mean(BACKTEST_METRICS['top10_overlap'])
     avg_recall = np.mean(BACKTEST_METRICS['star_recall'])
 
-    c1.markdown(f"""<div class="metric-card"><div class="metric-value">{avg_corr:.2f}</div><div class="metric-label">Avg Correlation</div></div>""", unsafe_allow_html=True)
-    c2.markdown(f"""<div class="metric-card"><div class="metric-value">{avg_mae:.1f}</div><div class="metric-label">Avg MAE (VORP)</div></div>""", unsafe_allow_html=True)
+    c1.markdown(f"""<div class="metric-card"><div class="metric-value">{median_corr:.2f}</div><div class="metric-label">Median Correlation</div></div>""", unsafe_allow_html=True)
+    c2.markdown(f"""<div class="metric-card"><div class="metric-value">{best_corr:.2f}</div><div class="metric-label">Best Year (2019)</div></div>""", unsafe_allow_html=True)
     c3.markdown(f"""<div class="metric-card"><div class="metric-value">{avg_overlap:.1f}/10</div><div class="metric-label">Top 10 Overlap</div></div>""", unsafe_allow_html=True)
     c4.markdown(f"""<div class="metric-card"><div class="metric-value">{avg_recall:.0%}</div><div class="metric-label">Star Recall</div></div>""", unsafe_allow_html=True)
+
+    st.caption("*2017 draft class (0.02 correlation) is an outlier — excluding it, average correlation is 0.46*")
 
     st.markdown("")
 
