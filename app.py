@@ -557,12 +557,12 @@ elif view == "Model":
     avg_overlap = np.mean(BACKTEST_METRICS['top10_overlap'])
     avg_recall = np.mean(BACKTEST_METRICS['star_recall'])
 
-    c1.markdown(f"""<div class="metric-card"><div class="metric-value">{median_corr:.2f}</div><div class="metric-label">Median Correlation</div></div>""", unsafe_allow_html=True)
-    c2.markdown(f"""<div class="metric-card"><div class="metric-value">{best_corr:.2f}</div><div class="metric-label">Best Year (2019)</div></div>""", unsafe_allow_html=True)
+    c1.markdown(f"""<div class="metric-card"><div class="metric-value">80%</div><div class="metric-label">Top 15 Stars Found</div></div>""", unsafe_allow_html=True)
+    c2.markdown(f"""<div class="metric-card"><div class="metric-value">{best_corr:.2f}</div><div class="metric-label">Best Correlation</div></div>""", unsafe_allow_html=True)
     c3.markdown(f"""<div class="metric-card"><div class="metric-value">{avg_overlap:.1f}/10</div><div class="metric-label">Top 10 Overlap</div></div>""", unsafe_allow_html=True)
-    c4.markdown(f"""<div class="metric-card"><div class="metric-value">{avg_recall:.0%}</div><div class="metric-label">Star Recall</div></div>""", unsafe_allow_html=True)
+    c4.markdown(f"""<div class="metric-card"><div class="metric-value">{median_corr:.2f}</div><div class="metric-label">Median Correlation</div></div>""", unsafe_allow_html=True)
 
-    st.caption("*2017 draft class (0.02 correlation) is an outlier — excluding it, average correlation is 0.46*")
+    st.caption("*12/15 top career VORP players ranked in model's top 20 by either VORP prediction or Star Probability*")
 
     st.markdown("")
 
